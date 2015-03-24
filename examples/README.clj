@@ -1,23 +1,4 @@
-# clj-cthun-client
-
-CThun message client
-
-https://github.com/puppetlabs/cthun-specifications
-
-
-# Installation
-
-The jar is distributed via the internal nexus server, to use it add
-the following to your project.clj
-
-    :dependencies [[puppetlabs/clj-cthun-client "0.0.1"]]
-
-    :repositories [["releases" "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"]
-                   ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
-
-# Usage example
-
-```clojure
+;; This is the example from the /README.md  Please keep me working.
 (ns example-client
   (:require [clojure.tools.logging :as log]
             [puppetlabs.cthun.client :as client]
@@ -68,4 +49,3 @@ the following to your project.clj
 (Thread/sleep (* 5 1000))
 
 (client/close conn)
-```
