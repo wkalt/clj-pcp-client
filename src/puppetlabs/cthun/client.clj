@@ -51,14 +51,13 @@
     (.start client)
     client))
 
-(defn- login-message
+(defn- session-association-message
   [client]
   (-> (message/make-message)
       (message/set-expiry 3 :seconds)
       (assoc :sender (:identity client)
-             :data_schema "http://puppetlabs.com/loginschema"
-             :endpoints ["cth://server"])
-      (message/set-json-data {:type (:type client)})))
+             :message_type "http://puppetlabs.com/associate_request"
+             :targets ["cth:///server"])))
 
 (defn- fallback-handler
   "The handler to use when no handler matches"
@@ -67,9 +66,9 @@
 
 (defn- dispatch-message
   [handlers client message]
-  (let [schema (:data_schema message)
+  (let [message-type (:message_type message)
         handers (:handlers client)
-        handler (or (get handlers schema)
+        handler (or (get handlers message-type)
                     (get handlers :default)
                     fallback-handler)]
     (handler client message)))
@@ -92,7 +91,7 @@
                          :client websocket
                          :on-connect (fn [session]
                                        (log/debug "connected")
-                                       (send! @client (login-message @client))
+                                       (send! @client (session-association-message @client))
                                        (log/debug "sent login"))
                          :on-error (fn [error] (log/error "websockets error" error))
                          :on-close (fn [code message]

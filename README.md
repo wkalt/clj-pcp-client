@@ -27,8 +27,8 @@ the following to your project.clj
   [conn request]
   (log/info "cnc handler got message" request)
   (let [response (-> (message/make-message)
-                     (assoc :endpoints [(:sender request)]
-                            :data_schema "example/cnc_response")
+                     (assoc :targets [(:sender request)]
+                            :message_type "example/cnc_response")
                      (message/set-expiry 3 :seconds)
                      (message/set-json-data {:response "Hello world"
                                              :request (:id request)}))]
@@ -54,14 +54,14 @@ the following to your project.clj
 (client/send! conn
               (-> (message/make-message)
                   (message/set-expiry 3 :seconds)
-                  (assoc :endpoints ["cth://*/demo-client"]
-                         :data_schema "example/any_schema")))
+                  (assoc :targets ["cth://*/demo-client"]
+                         :message_type "example/any_schema")))
 
 (client/send! conn
               (-> (message/make-message)
                   (message/set-expiry 3 :seconds)
-                  (assoc :endpoints ["cth://*/demo-client"]
-                         :data_schema "example/cnc_request")
+                  (assoc :targets ["cth://*/demo-client"]
+                         :message_type "example/cnc_request")
                   (message/set-json-data {:action "demo"})))
 
 ;; wait 5 seconds for things to resolve
