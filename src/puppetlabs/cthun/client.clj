@@ -28,7 +28,8 @@
   "schema for a client"
   (merge ConnectParams
          {:conn Object
-          :websocket Object}))
+          :websocket Object
+          :handlers Handlers}))
 
 ;; private helpers for the ssl/websockets setup
 
@@ -64,10 +65,10 @@
   [client message]
   (log/debug "no handler for " message))
 
-(defn- dispatch-message
-  [handlers client message]
+(defn dispatch-message
+  [client message]
   (let [message-type (:message_type message)
-        handers (:handlers client)
+        handlers (:handlers client)
         handler (or (get handlers message-type)
                     (get handlers :default)
                     fallback-handler)]
@@ -98,12 +99,12 @@
                                      (log/debug "websocket closed" code message))
                          :on-receive (fn [text]
                                        (log/debug "text message")
-                                       (dispatch-message handlers @client (message/decode (message/string->bytes text))))
+                                       (dispatch-message @client (message/decode (message/string->bytes text))))
                          :on-binary (fn [buffer offset count]
                                       (log/debug "bytes message" offset count)
                                       (log/debug "got " (message/decode buffer))
-                                      (dispatch-message handlers @client (message/decode buffer))))]
-    (deliver client (assoc params :conn conn :websocket websocket))
+                                      (dispatch-message @client (message/decode buffer))))]
+    (deliver client (assoc params :conn conn :websocket websocket :handlers handlers))
     @client))
 
 (s/defn ^:always-validate close :- s/Bool
