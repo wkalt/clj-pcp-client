@@ -52,7 +52,7 @@
     (.start client)
     client))
 
-(defn- session-association-message
+(defn session-association-message
   [client]
   (-> (message/make-message)
       (message/set-expiry 3 :seconds)
@@ -60,7 +60,7 @@
              :message_type "http://puppetlabs.com/associate_request"
              :targets ["cth:///server"])))
 
-(defn- fallback-handler
+(defn fallback-handler
   "The handler to use when no handler matches"
   [client message]
   (log/debug "no handler for " message))
