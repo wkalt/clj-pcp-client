@@ -10,7 +10,7 @@ https://github.com/puppetlabs/cthun-specifications
 The jar is distributed via the internal nexus server, to use it add
 the following to your project.clj
 
-    :dependencies [[puppetlabs/clj-cthun-client "0.0.1"]]
+    :dependencies [[puppetlabs/cthun-client "0.0.1"]]
 
     :repositories [["releases" "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"]
                    ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
@@ -42,10 +42,10 @@ the following to your project.clj
 ;; connecting with handlers
 (def conn (client/connect
            {:server "wss://localhost:8090/cthun/"
-            :cert "test-resources/ssl/certs/0006_controller.pem"
-            :private-key "test-resources/ssl/private_keys/0006_controller.pem"
+            :cert "test-resources/ssl/certs/0001_controller.pem"
+            :private-key "test-resources/ssl/private_keys/0001_controller.pem"
             :cacert "test-resources/ssl/certs/ca.pem"
-            :identity "cth://0006_controller/demo-client"
+            :identity "cth://0001_controller/demo-client"
             :type "demo-client"}
            {"example/cnc_request" cnc-request-handler
             :default default-request-handler}))
