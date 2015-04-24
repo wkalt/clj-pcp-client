@@ -18,7 +18,7 @@
 
                  [puppetlabs/ssl-utils "0.8.0"]
 
-                 [puppetlabs/cthun-message "0.0.1"]
+                 [puppetlabs/cthun-message "0.1.0"]
 
                  ;; TODO(richardc) transitive from puppetlabs/cthun-message.  should not be needed
                  [clj-time "0.9.0"]
