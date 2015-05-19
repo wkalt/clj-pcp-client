@@ -10,7 +10,7 @@ https://github.com/puppetlabs/cthun-specifications
 The jar is distributed via the internal nexus server, to use it add
 the following to your project.clj
 
-    :dependencies [[puppetlabs/cthun-client "0.0.1"]]
+    :dependencies [[puppetlabs/cthun-client "0.0.2"]]
 
     :repositories [["releases" "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"]
                    ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
