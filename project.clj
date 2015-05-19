@@ -5,7 +5,7 @@
    :password :env/nexus_jenkins_password
    :sign-releases false})
 
-(defproject puppetlabs/cthun-client "0.0.2-SNAPSHOT"
+(defproject puppetlabs/cthun-client "0.0.2"
   :description "client library for cthun protocol"
   :url "https://github.com/puppetlabs/clj-cthun-client"
   :license {:name ""
