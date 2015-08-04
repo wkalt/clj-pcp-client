@@ -26,7 +26,9 @@
                  [stylefruits/gniazdo "0.4.0"]
 
                  ;; try+/throw+
-                 [slingshot "0.12.2"]]
+                 [slingshot "0.12.2"]
+
+                 [puppetlabs/cthun-client "0.0.2"]]
 
   :plugins [[lein-release "1.0.5"]]
 
