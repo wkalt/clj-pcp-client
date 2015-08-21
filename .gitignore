@@ -9,5 +9,4 @@ pom.xml.asc
 /.nrepl-port
 *~
 /.idea
-
-/test-resources
+*.iml
