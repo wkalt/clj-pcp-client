@@ -23,8 +23,8 @@
                :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
 
    :web-router-service
-              {:puppetlabs.cthun.broker.service/broker-service {:websocket "/cthun"
-                                                                :metrics "/"}}
+   {:puppetlabs.cthun.broker.service/broker-service {:websocket "/cthun"
+                                                     :metrics "/"}}
 
    :metrics {:enabled true}
 
@@ -45,57 +45,32 @@
 		   :cacert      "test-resources/ssl/certs/ca.pem"
 		   :identity    (str "cth://" controller-id "/demo-client")
 		   :type        "demo-client"}
-		  {"example/cnc_request" handler-function
-		   "example/any_schema"  handler-function
+		  {"example/any_schema"  handler-function
 		   :default              default-request-handler}))
 
 (deftest send-message-and-assert-received-unchanged-test
   (testing "binary payloads"
-     (with-app-with-config
-       app
-       [broker-service jetty9-service webrouting-service metrics-service]
-       broker-config
-       (let [expected-data "Hello World!Ѱ$£%^\"\t\r\n(*)"
-             actual-data (atom nil)
-             expected-id (atom nil)
-             actual-id (atom nil)
-             expected-expires (atom nil)
-             actual-expires (atom nil)
-             expected-targets ["cth://0002_controller/demo-client"]
-             actual-targets (atom nil)
-             expected-sender "cth://0001_controller/demo-client"
-             actual-sender (atom nil)
-             msg2-received? (promise)
-             conn1 (connect-controller "0001_controller" default-request-handler)
-             handler (fn [conn2 request]
-                        (log/info "conn2 got message via any_schema" request)
-                        (let [data (String. (message/get-data request) "UTF-8")]
-                           (log/debug "message data as string is:" data)
-                           (reset! actual-data data)
-                           (reset! actual-id (:id request))
-                           (reset! actual-expires (:expires request))
-                           (reset! actual-targets (:targets request))
-                           (reset! actual-sender (:sender request))
-                           (deliver msg2-received? true)))
-              conn2 (connect-controller "0002_controller" handler)] 
-                (let [outbound-message (-> (message/make-message)
-                                           (message/set-expiry 3 :seconds)
-                                           (message/set-data (byte-array (.getBytes expected-data "UTF-8")))
-                                           (assoc :targets expected-targets
-                                                  :message_type "example/any_schema"))]
-                     (reset! expected-id (:id outbound-message))
-                     (reset! expected-expires (:expires outbound-message))
-                     (client/send! conn1 outbound-message))
-
-                @msg2-received?
-                (is (= expected-data @actual-data) (str "Comparing sent data \"" expected-data "\" with received data \"" @actual-data "\""))
-                (log/info (str "Asserting that id" @expected-id "equals" @actual-id))
-                (is (= @expected-id @actual-id) (str "Comparing sent id \"" @expected-id "\" with received id \"" @actual-id "\""))
-                (log/info (str "Asserting that expiry \"" @expected-expires "\" equals \"" @actual-expires "\""))
-                (is (= @expected-expires @actual-expires) (str "Comparing sent expires \"" @expected-expires "\" with received expires \"" @actual-expires "\""))
-                (log/info (str "Asserting that targets \"" expected-targets "\" equals \"" @actual-targets "\""))
-                (is (= expected-targets @actual-targets) (str "Comparing sent targets \"" expected-targets "\" with received targets \"" @actual-targets "\""))
-                (log/info (str "Asserting that sender \"" expected-sender "\" equals \"" @actual-sender "\""))
-                (is (= expected-sender @actual-sender) (str "Comparing sent sender \"" expected-sender "\" with received sender \"" @actual-sender "\""))
-                (client/close conn1)
-                (client/close conn2)))))
+    (with-app-with-config
+      app
+      [broker-service jetty9-service webrouting-service metrics-service]
+      broker-config
+      (let [expected-data "Hello World!Ѱ$£%^\"\t\r\n(*)"
+            message       (-> (message/make-message)
+                              (message/set-expiry 3 :seconds)
+                              (message/set-data (byte-array (.getBytes expected-data "UTF-8")))
+                              (assoc :targets      ["cth://0002_controller/demo-client"]
+                                     :message_type "example/any_schema"))
+            received      (promise)
+            sender        (connect-controller "0001_controller" (constantly true))
+            receiver      (connect-controller "0002_controller"
+                                              (fn [conn msg] (deliver received msg)))]
+        (client/send! sender message)
+        (deref received)
+        (client/close receiver) ;; TODO - refactor client so we can with-open it
+        (client/close sender)
+        (is (= expected-data (String. (message/get-data @received) "UTF-8")))
+        (is (= (:id message) (:id @received)))
+        (is (= (:message_type message) (:message_type @received)))
+        (is (= (:expires message) (:expires @received)))
+        (is (= (:targets message) (:targets @received)))
+        (is (= "cth://0001_controller/demo-client" (:sender @received)))))))
