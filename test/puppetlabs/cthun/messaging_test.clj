@@ -98,4 +98,4 @@
                 (log/info (str "Asserting that sender \"" expected-sender "\" equals \"" @actual-sender "\""))
                 (is (= expected-sender @actual-sender) (str "Comparing sent sender \"" expected-sender "\" with received sender \"" @actual-sender "\""))
                 (client/close conn1)
-                (client/close conn2))))
+                (client/close conn2)))))
