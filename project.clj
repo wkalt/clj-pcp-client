@@ -28,7 +28,7 @@
                  ;; try+/throw+
                  [slingshot "0.12.2"]]
 
-  :plugins [[lein-release "1.0.5"]]
+  :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
 
   :repositories [["releases" "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"]
                  ["snapshots"  "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
