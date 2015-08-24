@@ -1,7 +1,7 @@
 (ns puppetlabs.cthun.client-test
-  (require [clojure.test :refer :all]
-           [puppetlabs.cthun.client :refer :all]
-           [puppetlabs.cthun.message :as message]))
+  (:require [clojure.test :refer :all]
+            [puppetlabs.cthun.client :refer :all]
+            [puppetlabs.cthun.message :as message]))
 
 (deftest session-association-message-test
   (let [message (session-association-message {:identity "cth://lolcathost/agent"})]
