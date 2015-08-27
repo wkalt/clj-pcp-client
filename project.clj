@@ -21,7 +21,7 @@
                  [org.clojure/tools.logging "0.3.1"]
                  [prismatic/schema "0.4.3"]
                  [puppetlabs/ssl-utils "0.8.1"]
-                 [puppetlabs/cthun-message "0.1.0" :exclusions [clj-time]]
+                 [puppetlabs/cthun-message "0.2.0" :exclusions [clj-time]]
                  ;; bring in a newer version of jetty9 than gniazdo depends on
                  [org.eclipse.jetty.websocket/websocket-client ~jetty-version]
                  [stylefruits/gniazdo "0.4.0" :exclusions [org.eclipse.jetty.websocket/websocket-client]]
