@@ -43,7 +43,6 @@
                    :cert        (str "test-resources/ssl/certs/" controller-id ".pem")
 		   :private-key (str "test-resources/ssl/private_keys/" controller-id ".pem")
 		   :cacert      "test-resources/ssl/certs/ca.pem"
-		   :identity    (str "cth://" controller-id "/demo-client")
 		   :type        "demo-client"}
 		  {"example/any_schema"  handler-function
 		   :default              default-request-handler}))

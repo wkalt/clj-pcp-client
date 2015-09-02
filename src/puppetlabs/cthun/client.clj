@@ -2,6 +2,7 @@
   (:require [clojure.tools.logging :as log]
             [gniazdo.core :as ws]
             [puppetlabs.cthun.message :as message]
+            [puppetlabs.cthun.protocol :as p]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [schema.core :as s])
   (:import  (java.nio ByteBuffer)
@@ -16,7 +17,6 @@
    :cacert s/Str
    :cert s/Str
    :private-key s/Str
-   :identity s/Str
    :type s/Str})
 
 (def Handlers
@@ -27,7 +27,8 @@
 (def Client
   "schema for a client"
   (merge ConnectParams
-         {:conn Object
+         {:identity p/Uri
+          :conn Object
           :websocket Object
           :handlers Handlers}))
 
@@ -81,12 +82,19 @@
                (message/encode (assoc message :sender (:identity client))))
   true)
 
-;; TODO(richardc): the identity should be derived from the client
-;; certificate and the connection type.
+(s/defn ^:always-validate ^:private make-identity :- p/Uri
+  [certificate type]
+  (let [x509     (ssl-utils/pem->cert certificate)
+        cn       (ssl-utils/get-cn-from-x509-certificate x509)
+        identity (format "cth://%s/%s" cn type)]
+    identity))
 
 (s/defn ^:always-validate connect :- Client
   [params :- ConnectParams handlers :- Handlers]
-  (let [client (promise)
+  (let [cert (:cert params)
+        type (:type params)
+        identity (make-identity cert type)
+        client (promise)
         websocket (make-websocket-client params)
         conn (ws/connect (:server params)
                          :client websocket
@@ -104,7 +112,11 @@
                                       (log/debug "bytes message" offset count)
                                       (log/debug "got " (message/decode buffer))
                                       (dispatch-message @client (message/decode buffer))))]
-    (deliver client (assoc params :conn conn :websocket websocket :handlers handlers))
+    (deliver client (merge params
+                           {:identity identity
+                            :conn conn
+                            :websocket websocket
+                            :handlers handlers}))
     @client))
 
 (s/defn ^:always-validate close :- s/Bool

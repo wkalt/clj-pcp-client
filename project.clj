@@ -25,7 +25,7 @@
                  [clj-time "0.9.0"]
 
                  [puppetlabs/ssl-utils "0.8.1"]
-                 [puppetlabs/cthun-message "0.2.0"]
+                 [puppetlabs/cthun-message "0.3.1"]
 
                  ;; Transitive dependencies on jetty for gniazdo
                  ;; to use the stable jetty release (gniazdo specifies 9.3.0M1)

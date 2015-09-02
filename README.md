@@ -45,7 +45,6 @@ the following to your project.clj
             :cert "test-resources/ssl/certs/0001_controller.pem"
             :private-key "test-resources/ssl/private_keys/0001_controller.pem"
             :cacert "test-resources/ssl/certs/ca.pem"
-            :identity "cth://0001_controller/demo-client"
             :type "demo-client"}
            {"example/cnc_request" cnc-request-handler
             :default default-request-handler}))

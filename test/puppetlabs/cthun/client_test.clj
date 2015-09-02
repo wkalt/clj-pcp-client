@@ -16,14 +16,22 @@
 
 (deftest dispatch-message-test
   (with-redefs [puppetlabs.cthun.client/fallback-handler (fn [c m] "fallback")]
+    (testing "should fall back to fallback-handler with no :default"
+      (is (= "fallback"
+             (dispatch-message {:handlers {}} {:message_type "foo"})))))
 
-  (testing "should fall back to fallback-handler with no :default"
-    (is (= "fallback"
-           (dispatch-message {:handlers {}} {:message_type "foo"})))))
   (let [client {:handlers {"foo" (fn [c m] "foo")
                            :default (fn [c m] "default")}}]
+
     (testing "default handler should match when supplied"
       (is (= "foo"
              (dispatch-message client {:message_type "foo"})))
       (is (= "default"
              (dispatch-message client {:message_type "bar"}))))))
+
+
+(def make-identity #'puppetlabs.cthun.client/make-identity)
+
+(deftest make-identity-test
+  (is (= "cth://cthun-server/test"
+         (make-identity "test-resources/ssl/certs/cthun-server.pem" "test"))))
