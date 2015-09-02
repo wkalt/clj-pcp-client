@@ -21,13 +21,14 @@
                  [org.clojure/tools.logging "0.3.1"]
                  [prismatic/schema "0.4.3"]
 
-                 ;; Transitive dependency for ssl-utils and cthun-message
+                 ;; Transitive dependency for puppetlabs/ssl-utils and
+                 ;; puppetlabs/cthun-message
                  [clj-time "0.9.0"]
 
                  [puppetlabs/ssl-utils "0.8.1"]
                  [puppetlabs/cthun-message "0.3.1"]
 
-                 ;; Transitive dependencies on jetty for gniazdo
+                 ;; Transitive dependencies on jetty for stylefuits/gniazdo
                  ;; to use the stable jetty release (gniazdo specifies 9.3.0M1)
                  [org.eclipse.jetty.websocket/websocket-client ~jetty-version]
 
