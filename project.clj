@@ -1,7 +1,3 @@
-(def ks-version "1.1.0")
-(def jetty-version "9.2.10.v20150310")
-
-
 (defn deploy-info
   [url]
   {:url url
@@ -9,9 +5,9 @@
    :password :env/nexus_jenkins_password
    :sign-releases false})
 
-(defproject puppetlabs/cthun-client "0.0.6-SNAPSHOT"
-  :description "client library for cthun protocol"
-  :url "https://github.com/puppetlabs/clj-cthun-client"
+(defproject puppetlabs/pcp-client "0.0.6-SNAPSHOT"
+  :description "client library for PCP"
+  :url "https://github.com/puppetlabs/clj-pcp-client"
   :license {:name ""
             :url ""}
 
@@ -22,16 +18,15 @@
                  [prismatic/schema "0.4.3"]
 
                  ;; Transitive dependency for puppetlabs/ssl-utils and
-                 ;; puppetlabs/cthun-message
+                 ;; puppetlabs/pcp-common
                  [clj-time "0.9.0"]
 
                  [puppetlabs/ssl-utils "0.8.1"]
-                 [puppetlabs/cthun-message "0.3.1"]
                  [puppetlabs/pcp-common "0.4.0"]
 
                  ;; Transitive dependencies on jetty for stylefuits/gniazdo
-                 ;; to use the stable jetty release (gniazdo specifies 9.3.0M1)
-                 [org.eclipse.jetty.websocket/websocket-client ~jetty-version]
+                 ;; to use a stable jetty release (gniazdo specifies 9.3.0M1)
+                 [org.eclipse.jetty.websocket/websocket-client "9.2.10.v20150310"]
 
                  [stylefruits/gniazdo "0.4.0" :exclusions [org.eclipse.jetty.websocket/websocket-client]]
 
@@ -50,6 +45,6 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [[puppetlabs/cthun "0.2.0-SNAPSHOT"]
+  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.2.0"]
                                   [puppetlabs/trapperkeeper "1.1.1" :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]}})
+                                  [puppetlabs/kitchensink "1.1.0" :classifier "test" :scope "test"]]}})

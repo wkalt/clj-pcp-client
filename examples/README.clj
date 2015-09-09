@@ -2,8 +2,8 @@
 ;; to run, install the lein-exec plugin then:  lein exec -p examples/README.clj
 (ns example-client
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.cthun.client :as client]
-            [puppetlabs.cthun.message :as message]))
+            [puppetlabs.pcp.client :as client]
+            [puppetlabs.pcp.message :as message]))
 
 (defn cnc-request-handler
   [conn request]

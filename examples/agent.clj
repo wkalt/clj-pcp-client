@@ -2,8 +2,8 @@
 
 (ns example-agent
     (:require [clojure.tools.logging :as log]
-      [puppetlabs.cthun.client :as client]
-      [puppetlabs.cthun.message :as message]))
+      [puppetlabs.pcp.client :as client]
+      [puppetlabs.pcp.message :as message]))
 
 (defn associate-session-handler
       [conn msg]

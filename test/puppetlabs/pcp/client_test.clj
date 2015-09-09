@@ -1,10 +1,10 @@
-(ns puppetlabs.cthun.client-test
+(ns puppetlabs.pcp.client-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.cthun.client :refer :all]
-            [puppetlabs.cthun.message :as message]))
+            [puppetlabs.pcp.client :refer :all]
+            [puppetlabs.pcp.message :as message]))
 
 ;; aliases to 'private' functions
-(def session-association-message #'puppetlabs.cthun.client/session-association-message)
+(def session-association-message #'puppetlabs.pcp.client/session-association-message)
 
 (defn make-test-client
   "A dummied up client object"
@@ -37,7 +37,7 @@
              (:message_type message))))))
 
 (deftest dispatch-message-test
-  (with-redefs [puppetlabs.cthun.client/fallback-handler (fn [c m] "fallback")]
+  (with-redefs [puppetlabs.pcp.client/fallback-handler (fn [c m] "fallback")]
     (testing "should fall back to fallback-handler with no :default"
       (is (= "fallback"
              (dispatch-message {:handlers {}} {:message_type "foo"})))))
@@ -52,7 +52,7 @@
              (dispatch-message client {:message_type "bar"}))))))
 
 
-(def make-identity #'puppetlabs.cthun.client/make-identity)
+(def make-identity #'puppetlabs.pcp.client/make-identity)
 
 (deftest make-identity-test
   (is (= "cth://broker.example.com/test"

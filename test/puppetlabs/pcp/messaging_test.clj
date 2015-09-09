@@ -1,16 +1,15 @@
-(ns puppetlabs.cthun.messaging-test
+(ns puppetlabs.pcp.messaging-test
   (:require [clojure.test :refer :all]
             [clojure.tools.logging :as log]
-            [puppetlabs.cthun.broker.service :refer [broker-service]]
-            [puppetlabs.cthun.client :as client]
-            [puppetlabs.cthun.message :as message]
+            [puppetlabs.pcp.broker.service :refer [broker-service]]
+            [puppetlabs.pcp.client :as client]
+            [puppetlabs.pcp.message :as message]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
-             :refer [with-test-logging with-test-logging-debug]]
-  ))
+             :refer [with-test-logging with-test-logging-debug]]))
 
 (def broker-config
   "A broker with ssl and own spool"
@@ -22,14 +21,14 @@
                :ssl-ca-cert  "./test-resources/ssl/ca/ca_crt.pem"
                :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
 
-   :web-router-service {:puppetlabs.cthun.broker.service/broker-service {:websocket "/pcp"
-                                                                         :metrics "/"}}
+   :web-router-service {:puppetlabs.pcp.broker.service/broker-service {:websocket "/pcp"
+                                                                       :metrics "/"}}
 
    :metrics {:enabled true}
 
-   :cthun {:broker-spool "test-resources/tmp/spool"
-           :accept-consumers 2
-           :delivery-consumers 2}})
+   :pcp-broker {:broker-spool "test-resources/tmp/spool"
+                :accept-consumers 2
+                :delivery-consumers 2}})
 
 (defn default-request-handler
   [conn request]

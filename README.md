@@ -1,8 +1,8 @@
-# clj-cthun-client
+# clj-pcp-client
 
-CThun message client
+PCP client
 
-https://github.com/puppetlabs/cthun-specifications
+https://github.com/puppetlabs/pcp-specifications
 
 
 # Installation
@@ -10,7 +10,7 @@ https://github.com/puppetlabs/cthun-specifications
 The jar is distributed via the internal nexus server, to use it add
 the following to your project.clj
 
-    :dependencies [[puppetlabs/cthun-client "0.0.2"]]
+    :dependencies [[puppetlabs/pcp-client "0.0.2"]]
 
     :repositories [["releases" "http://nexus.delivery.puppetlabs.net/content/repositories/releases/"]
                    ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
@@ -20,8 +20,8 @@ the following to your project.clj
 ```clojure
 (ns example-client
   (:require [clojure.tools.logging :as log]
-            [puppetlabs.cthun.client :as client]
-            [puppetlabs.cthun.message :as message]))
+            [puppetlabs.pcp.client :as client]
+            [puppetlabs.pcp.message :as message]))
 
 (defn cnc-request-handler
   [conn request]
@@ -41,7 +41,7 @@ the following to your project.clj
 
 ;; connecting with handlers
 (def conn (client/connect
-           {:server "wss://localhost:8090/cthun/"
+           {:server "wss://localhost:8090/pcp/"
             :cert "test-resources/ssl/certs/0001_controller.pem"
             :private-key "test-resources/ssl/private_keys/0001_controller.pem"
             :cacert "test-resources/ssl/certs/ca.pem"
