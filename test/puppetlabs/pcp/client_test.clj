@@ -14,7 +14,7 @@
    :cert ""
    :private-key ""
    :type ""
-   :identity "cth://the_identity/the_type"
+   :identity "pcp://the_identity/the_type"
    :conn ""
    :state (atom :connecting)
    :websocket ""
@@ -55,5 +55,5 @@
 (def make-identity #'puppetlabs.pcp.client/make-identity)
 
 (deftest make-identity-test
-  (is (= "cth://broker.example.com/test"
+  (is (= "pcp://broker.example.com/test"
          (make-identity "test-resources/ssl/certs/broker.example.com.pem" "test"))))

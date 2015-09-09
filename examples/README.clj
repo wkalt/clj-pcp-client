@@ -38,7 +38,7 @@
 (client/send! conn
               (-> (message/make-message)
                   (message/set-expiry 3 :seconds)
-                  (assoc :targets ["cth://*/demo-client"]
+                  (assoc :targets ["pcp://*/demo-client"]
                          :message_type "example/any_schema")))
 
 (log/info "### sending example/cnc_request")
@@ -46,7 +46,7 @@
 (client/send! conn
               (-> (message/make-message)
                   (message/set-expiry 3 :seconds)
-                  (assoc :targets ["cth://*/demo-client"]
+                  (assoc :targets ["pcp://*/demo-client"]
                          :message_type "example/cnc_request")
                   (message/set-json-data {:action "demo"})))
 

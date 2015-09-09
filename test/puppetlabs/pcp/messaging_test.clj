@@ -56,7 +56,7 @@
             message       (-> (message/make-message)
                               (message/set-expiry 3 :seconds)
                               (message/set-data (byte-array (.getBytes expected-data "UTF-8")))
-                              (assoc :targets      ["cth://client02.example.com/demo-client"]
+                              (assoc :targets      ["pcp://client02.example.com/demo-client"]
                                      :message_type "example/any_schema"))
             received      (promise)
             sender        (connect-controller "client01" (constantly true))
@@ -71,4 +71,4 @@
         (is (= (:message_type message) (:message_type @received)))
         (is (= (:expires message) (:expires @received)))
         (is (= (:targets message) (:targets @received)))
-        (is (= "cth://client01.example.com/demo-client" (:sender @received)))))))
+        (is (= "pcp://client01.example.com/demo-client" (:sender @received)))))))

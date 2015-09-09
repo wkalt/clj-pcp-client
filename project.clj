@@ -22,7 +22,7 @@
                  [clj-time "0.9.0"]
 
                  [puppetlabs/ssl-utils "0.8.1"]
-                 [puppetlabs/pcp-common "0.4.0"]
+                 [puppetlabs/pcp-common "0.4.1"]
 
                  ;; Transitive dependencies on jetty for stylefuits/gniazdo
                  ;; to use a stable jetty release (gniazdo specifies 9.3.0M1)
@@ -45,6 +45,6 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.2.0"]
+  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.2.1"]
                                   [puppetlabs/trapperkeeper "1.1.1" :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink "1.1.0" :classifier "test" :scope "test"]]}})
