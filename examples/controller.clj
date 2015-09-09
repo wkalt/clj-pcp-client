@@ -58,16 +58,16 @@
          cl
          (-> (message/make-message)
              (message/set-expiry 4 :seconds)
-             (assoc :targets ["cth:///server"]
+             (assoc :targets ["pcp:///server"]
                     :message_type "http://puppetlabs.com/inventory_request")
-             (message/set-json-data {:query ["cth://*/agent"]})))
+             (message/set-json-data {:query ["pcp://*/agent"]})))
 
        (log/info "### sending agent request")
        (client/send!
          cl
          (-> (message/make-message)
              (message/set-expiry 4 :seconds)
-             (assoc :targets ["cth://*/agent"]
+             (assoc :targets ["pcp://*/agent"]
                     :message_type "example/request")
              (message/set-json-data {:action "demo"})))
        (log/info "### waiting for 60 s")

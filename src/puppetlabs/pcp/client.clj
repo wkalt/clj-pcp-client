@@ -95,7 +95,7 @@
 (s/defn ^:always-validate ^:private session-association-message :- Message
   [client :- Client]
   (-> (message/make-message :message_type "http://puppetlabs.com/associate_request"
-                            :targets ["cth:///server"])
+                            :targets ["pcp:///server"])
       (message/set-expiry 3 :seconds)))
 
 (defn fallback-handler
@@ -124,7 +124,7 @@
   [certificate type]
   (let [x509     (ssl-utils/pem->cert certificate)
         cn       (ssl-utils/get-cn-from-x509-certificate x509)
-        identity (format "cth://%s/%s" cn type)]
+        identity (format "pcp://%s/%s" cn type)]
     identity))
 
 (s/defn ^:always-validate ^:private heartbeat

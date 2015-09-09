@@ -53,13 +53,13 @@ the following to your project.clj
 (client/send! conn
               (-> (message/make-message)
                   (message/set-expiry 3 :seconds)
-                  (assoc :targets ["cth://*/demo-client"]
+                  (assoc :targets ["pcp://*/demo-client"]
                          :message_type "example/any_schema")))
 
 (client/send! conn
               (-> (message/make-message)
                   (message/set-expiry 3 :seconds)
-                  (assoc :targets ["cth://*/demo-client"]
+                  (assoc :targets ["pcp://*/demo-client"]
                          :message_type "example/cnc_request")
                   (message/set-json-data {:action "demo"})))
 
