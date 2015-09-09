@@ -1,8 +1,8 @@
-(ns puppetlabs.cthun.client
+(ns puppetlabs.pcp.client
   (:require [clojure.tools.logging :as log]
             [gniazdo.core :as ws]
-            [puppetlabs.cthun.message :as message :refer [Message]]
-            [puppetlabs.cthun.protocol :as p]
+            [puppetlabs.pcp.message :as message :refer [Message]]
+            [puppetlabs.pcp.protocol :as p]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [schema.core :as s])
   (:import  (clojure.lang Atom)
