@@ -47,7 +47,7 @@
           :websocket Object
           :handlers Handlers
           :heartbeat-stop Object ;; promise that when delivered means should stop
-          }))
+}))
 
 ;; connection state checkers
 (s/defn ^:always-validate state :- (s/pred ws-state?)
@@ -135,12 +135,12 @@
   (log/debug "WebSocket heartbeat task is about to start")
   (let [should-stop (:heartbeat-stop client)
         websocket (:websocket client)]
-       (while (not (deref should-stop 15000 false))
-              (let [sessions (.getOpenSessions websocket)]
-                   (log/debug "Sending WebSocket ping")
-                   (doseq [session sessions]
-                          (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
-       (log/debug "WebSocket heartbeat task is about to finish")))
+    (while (not (deref should-stop 15000 false))
+      (let [sessions (.getOpenSessions websocket)]
+        (log/debug "Sending WebSocket ping")
+        (doseq [session sessions]
+          (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
+    (log/debug "WebSocket heartbeat task is about to finish")))
 
 (s/defn ^:always-validate connect :- Client
   [params :- ConnectParams handlers :- Handlers]
@@ -157,7 +157,7 @@
                                        (send! @client (session-association-message @client))
                                        (log/debug "sent associate session request")
                                        (let [task (Thread. (fn [] (heartbeat @client)))]
-                                          (.start task)))
+                                         (.start task)))
                          :on-error (fn [error]
                                      (log/error error "WebSocket error"))
                          :on-close (fn [code message]
