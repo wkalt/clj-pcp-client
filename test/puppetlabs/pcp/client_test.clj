@@ -22,11 +22,11 @@
    :heartbeat-stop (promise)})
 
 (deftest state-checkers-test
-     (let [client (make-test-client)]
-        (testing "successfully returns positive"
-           (is (connecting? client)))
-        (testing "successfully returns negative"
-           (is (not (open? client))))))
+  (let [client (make-test-client)]
+    (testing "successfully returns positive"
+      (is (connecting? client)))
+    (testing "successfully returns negative"
+      (is (not (open? client))))))
 
 (deftest session-association-message-test
   (let [message (session-association-message (make-test-client))]
@@ -50,7 +50,6 @@
              (dispatch-message client {:message_type "foo"})))
       (is (= "default"
              (dispatch-message client {:message_type "bar"}))))))
-
 
 (def make-identity #'puppetlabs.pcp.client/make-identity)
 

@@ -38,13 +38,13 @@
 (defn connect-controller
   [controller-id handler-function]
   (client/connect
-    {:server      "wss://localhost:8081/pcp/"
-     :cert        (str "test-resources/ssl/certs/" controller-id ".example.com.pem")
-     :private-key (str "test-resources/ssl/private_keys/" controller-id ".example.com.pem")
-     :cacert      "test-resources/ssl/certs/ca.pem"
-     :type        "demo-client"}
-    {"example/any_schema"  handler-function
-     :default              default-request-handler}))
+   {:server      "wss://localhost:8081/pcp/"
+    :cert        (str "test-resources/ssl/certs/" controller-id ".example.com.pem")
+    :private-key (str "test-resources/ssl/private_keys/" controller-id ".example.com.pem")
+    :cacert      "test-resources/ssl/certs/ca.pem"
+    :type        "demo-client"}
+   {"example/any_schema"  handler-function
+    :default              default-request-handler}))
 
 (deftest send-message-and-assert-received-unchanged-test
   (testing "binary payloads"
