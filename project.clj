@@ -47,4 +47,10 @@
 
   :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.2.1"]
                                   [puppetlabs/trapperkeeper "1.1.1" :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink "1.1.0" :classifier "test" :scope "test"]]}})
+                                  [puppetlabs/kitchensink "1.1.0" :classifier "test" :scope "test"]]}
+             :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
+                                [lein-parent "0.2.1"]]
+                      :parent-project {:path "../pl-clojure-style/project.clj"
+                                       :inherit [:cljfmt]}}}
+
+  :aliases {"cljfmt" ["with-profile" "+cljfmt" "cljfmt"]})
