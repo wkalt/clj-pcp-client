@@ -3,9 +3,6 @@
             [puppetlabs.pcp.client :refer :all]
             [puppetlabs.pcp.message :as message]))
 
-;; aliases to 'private' functions
-(def session-association-message #'puppetlabs.pcp.client/session-association-message)
-
 (defn make-test-client
   "A dummied up client object"
   []
@@ -15,11 +12,11 @@
    :private-key ""
    :type ""
    :identity "pcp://the_identity/the_type"
-   :conn ""
    :state (atom :connecting)
-   :websocket ""
+   :websocket-client ""
+   :websocket-connection ""
    :handlers {}
-   :heartbeat-stop (promise)})
+   :should-stop (promise)})
 
 (deftest state-checkers-test
   (let [client (make-test-client)]
@@ -28,6 +25,7 @@
     (testing "successfully returns negative"
       (is (not (open? client))))))
 
+(def session-association-message #'puppetlabs.pcp.client/session-association-message)
 (deftest session-association-message-test
   (let [message (session-association-message (make-test-client))]
     (testing "it yields a message"
@@ -56,3 +54,21 @@
 (deftest make-identity-test
   (is (= "pcp://broker.example.com/test"
          (make-identity "test-resources/ssl/certs/broker.example.com.pem" "test"))))
+
+(def make-connection #'puppetlabs.pcp.client/make-connection)
+(deftest make-connection-test
+  (with-redefs [gniazdo.core/connect (constantly "awesome")]
+    (is (= "awesome"
+           (make-connection (make-test-client))))))
+
+(deftest wait-for-connection-test
+  (testing "when connected"
+    (let [connection (atom (future "yes"))
+          connected (assoc (make-test-client) :websocket-connection connection)]
+      (is (= connected
+             (wait-for-connection connected 1000)))))
+  (testing "when connecting slowly"
+    (let [connection (atom (future (Thread/sleep 10000) "slowly"))
+          connected-later (assoc (make-test-client) :websocket-connection connection)]
+      (is (= nil
+             (wait-for-connection connected-later 1000))))))

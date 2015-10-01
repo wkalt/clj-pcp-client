@@ -5,6 +5,7 @@
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [schema.core :as s])
+  (:use [slingshot.slingshot :only [throw+ try+]])
   (:import  (clojure.lang Atom)
             (java.nio ByteBuffer)
             (org.eclipse.jetty.websocket.client WebSocketClient)
@@ -42,12 +43,11 @@
   "schema for a client"
   (merge ConnectParams
          {:identity p/Uri
-          :conn Object
           :state WSState
-          :websocket Object
           :handlers Handlers
-          :heartbeat-stop Object ;; promise that when delivered means should stop
-}))
+          :should-stop Object ;; promise that when delivered means should stop
+          :websocket-client Object
+          :websocket-connection Object}))
 
 ;; connection state checkers
 (s/defn ^:always-validate state :- (s/pred ws-state?)
@@ -115,10 +115,14 @@
 ;; synchronous interface
 
 (s/defn ^:always-validate send! :- s/Bool
+  "Send a message across the websocket session"
   [client :- Client message :- message/Message]
-  (ws/send-msg (:conn client)
-               (message/encode (assoc message :sender (:identity client))))
-  true)
+  (let [{:keys [identity websocket-connection]} client]
+    (if-not (realized? @websocket-connection)
+      (throw+ {:type ::not-connected})
+      (ws/send-msg @@websocket-connection
+                   (message/encode (assoc message :sender identity))))
+    true))
 
 (s/defn ^:always-validate ^:private make-identity :- p/Uri
   [certificate type]
@@ -128,66 +132,93 @@
     identity))
 
 (s/defn ^:always-validate ^:private heartbeat
-  "Starts the WebSocket heartbeat task that keeps the current
-  connection alive as long as the 'heartbeat-stop' promise has not
-  been delivered."
+  "Starts the WebSocket heartbeat task that sends pings over the
+  current set of connections as long as the 'should-stop' promise has
+  not been delivered.  Will keep a connection alive, or detect a
+  stalled connection earlier."
   [client :- Client]
-  (log/debug "WebSocket heartbeat task is about to start")
-  (let [should-stop (:heartbeat-stop client)
-        websocket (:websocket client)]
+  (log/debug "WebSocket heartbeat task is about to start" client)
+  (let [{:keys [should-stop websocket-client]} client]
     (while (not (deref should-stop 15000 false))
-      (let [sessions (.getOpenSessions websocket)]
+      (let [sessions (.getOpenSessions websocket-client)]
         (log/debug "Sending WebSocket ping")
         (doseq [session sessions]
           (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
     (log/debug "WebSocket heartbeat task is about to finish")))
 
+(s/defn ^:always-validate ^:private make-connection :- Object
+  "Returns a connected websocket connection"
+  [client :- Client]
+  (let [{:keys [server websocket-client state should-stop]} client
+        initial-sleep 200
+        sleep-multiplier 2
+        maximum-sleep (* 30 1000)]
+    (reset! state :connecting)
+    (loop [retry-sleep initial-sleep]
+      (or (try+
+            (log/debugf "Making connection to %s" server)
+            (ws/connect server
+                        :client websocket-client
+                        :on-connect (fn [session]
+                                      (log/debug "WebSocket connected")
+                                      (reset! state :open)
+                                      (send! client (session-association-message client))
+                                      (log/debug "sent associate session request"))
+                        :on-error (fn [error]
+                                    (log/error error "WebSocket error"))
+                        :on-close (fn [code message]
+                                    (log/debug "WebSocket closed" code message)
+                                    (reset! state :closed)
+                                    (let [{:keys [should-stop websocket-connection]} client]
+                                      (when (not (realized? should-stop))
+                                        (reset! websocket-connection (future (make-connection client))))))
+                        :on-receive (fn [text]
+                                      (log/debug "received text message")
+                                      (dispatch-message client (message/decode (message/string->bytes text))))
+                        :on-binary (fn [buffer offset count]
+                                     (let [message (message/decode buffer)]
+                                       (log/debug "received bin message - offset/bytes:" offset count
+                                                  "- message:" message)
+                                       (dispatch-message client message))))
+            (catch java.net.ConnectException exception
+              (log/debugf exception "Didn't get connected.  Sleeping for up to %dms to retry" retry-sleep)
+              (deref should-stop retry-sleep nil))
+            (catch Object _
+              (log/error (:throwable &throw-context) "unexpected error")
+              (throw+)))
+          (recur (min maximum-sleep (* retry-sleep sleep-multiplier)))))))
+
 (s/defn ^:always-validate connect :- Client
   [params :- ConnectParams handlers :- Handlers]
-  (let [cert (:cert params)
-        type (:type params)
-        identity (make-identity cert type)
-        client (promise)
-        websocket (make-websocket-client params)
-        conn (ws/connect (:server params)
-                         :client websocket
-                         :on-connect (fn [session]
-                                       (log/debug "WebSocket connected")
-                                       (reset! (:state @client) :open)
-                                       (send! @client (session-association-message @client))
-                                       (log/debug "sent associate session request")
-                                       (let [task (Thread. (fn [] (heartbeat @client)))]
-                                         (.start task)))
-                         :on-error (fn [error]
-                                     (log/error error "WebSocket error"))
-                         :on-close (fn [code message]
-                                     (log/debug "WebSocket closed" code message)
-                                     (reset! (:state @client) :closed))
-                         :on-receive (fn [text]
-                                       (log/debug "received text message")
-                                       (dispatch-message @client (message/decode (message/string->bytes text))))
-                         :on-binary (fn [buffer offset count]
-                                      (log/debug "received bin message - offset/bytes:" offset count
-                                                 "- message:" (message/decode buffer))
-                                      (dispatch-message @client (message/decode buffer))))]
-    (deliver client (merge params
-                           {:identity identity
-                            :conn conn
-                            :state (atom :connecting :validator ws-state?)
-                            :websocket websocket
-                            :handlers handlers
-                            :heartbeat-stop (promise)}))
-    @client))
+  (let [{:keys [cert type]} params
+        client (merge params {:identity (make-identity cert type)
+                              :state (atom :connecting :validator ws-state?)
+                              :websocket-client (make-websocket-client params)
+                              :websocket-connection (atom (future "To be a connection later"))
+                              :handlers handlers
+                              :should-stop (promise)})
+        {:keys [websocket-connection]} client]
+    (.start (Thread. (partial heartbeat client)))
+    (reset! websocket-connection (future (make-connection client)))
+    client))
+
+(s/defn ^:always-validate wait-for-connection :- (s/maybe Client)
+  "Waits until a client is connected.  If timeout is hit, returns falsey"
+  [client :- Client timeout :- s/Num]
+  (let [{:keys [websocket-connection]} client]
+    (if (deref @websocket-connection timeout nil)
+      client
+      nil)))
 
 (s/defn ^:always-validate close :- s/Bool
   "Close the connection"
   [client :- Client]
-  (deliver (:heartbeat-stop client) true)
-  (when (contains? #{:opening :open} (state client))
-    (log/debug "Closing")
-    (reset! (:state client) :closing)
-    (.stop (:websocket client))
-    (ws/close (:conn client)))
-  true)
-
-;; TODO(ale): consider moving the heartbeat pings into a monitor task
+  (let [{:keys [should-stop websocket-client websocket-connection]} client]
+    (deliver should-stop true)
+    (when (contains? #{:opening :open} (state client))
+      (log/debug "Closing")
+      (reset! (:state client) :closing)
+      (.stop websocket-client))
+    (when (realized? @websocket-connection)
+      (ws/close @@websocket-connection))
+    true))
