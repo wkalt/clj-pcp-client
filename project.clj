@@ -8,8 +8,8 @@
 (defproject puppetlabs/pcp-client "0.0.8-SNAPSHOT"
   :description "client library for PCP"
   :url "https://github.com/puppetlabs/clj-pcp-client"
-  :license {:name ""
-            :url ""}
+  :license {:name "Apache License, Version 2.0"
+            :url "http://www.apache.org/licenses/LICENSE-2.0.html"}
 
   :pedantic? :abort
 
