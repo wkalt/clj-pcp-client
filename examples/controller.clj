@@ -34,7 +34,7 @@
   (log/warn "&&& Default handler got message" msg))
 
 (def controller-params
-  {:server      "wss://localhost:8090/pcp/"
+  {:server      "wss://localhost:8142/pcp/"
    :cert        "test-resources/ssl/certs/client01.example.com.pem"
    :private-key "test-resources/ssl/private_keys/client01.example.com.pem"
    :cacert      "test-resources/ssl/certs/ca.pem"

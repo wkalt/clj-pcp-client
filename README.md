@@ -41,7 +41,7 @@ the following to your project.clj
 
 ;; connecting with handlers
 (def conn (client/connect
-           {:server "wss://localhost:8090/pcp/"
+           {:server "wss://localhost:8142/pcp/"
             :cert "test-resources/ssl/certs/0001_controller.pem"
             :private-key "test-resources/ssl/private_keys/0001_controller.pem"
             :cacert "test-resources/ssl/certs/ca.pem"

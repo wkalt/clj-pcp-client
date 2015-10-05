@@ -54,7 +54,7 @@
       (log/info "Default handler got message" msg))
 
 (def agent-params
-  {:server      "wss://localhost:8090/pcp/"
+  {:server      "wss://localhost:8142/pcp/"
    :cert        "test-resources/ssl/certs/client02.example.com.pem"
    :private-key "test-resources/ssl/private_keys/client02.example.com.pem"
    :cacert      "test-resources/ssl/certs/ca.pem"
