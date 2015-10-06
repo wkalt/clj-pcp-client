@@ -9,7 +9,8 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
-             :refer [with-test-logging with-test-logging-debug]]))
+             :refer [with-test-logging with-test-logging-debug]]
+            [slingshot.test]))
 
 (def broker-config
   "A broker with ssl and own spool"
@@ -35,13 +36,13 @@
   [conn request]
   (log/debug "Default handler got message" request))
 
-;; connect a controller with handler functions
-(defn connect-controller
-  [controller-id handler-function]
+(defn connect-client
+  "connect a client with a handler function"
+  [cn handler-function]
   (client/connect
    {:server      "wss://localhost:8143/pcp/"
-    :cert        (str "test-resources/ssl/certs/" controller-id ".example.com.pem")
-    :private-key (str "test-resources/ssl/private_keys/" controller-id ".example.com.pem")
+    :cert        (format "test-resources/ssl/certs/%s.example.com.pem" cn)
+    :private-key (format "test-resources/ssl/private_keys/%s.example.com.pem" cn)
     :cacert      "test-resources/ssl/certs/ca.pem"
     :type        "demo-client"}
    {"example/any_schema"  handler-function
@@ -60,16 +61,61 @@
                               (assoc :targets      ["pcp://client02.example.com/demo-client"]
                                      :message_type "example/any_schema"))
             received      (promise)
-            sender        (connect-controller "client01" (constantly true))
-            receiver      (connect-controller "client02"
-                                              (fn [conn msg] (deliver received msg)))]
+            sender        (connect-client "client01" (constantly true))
+            receiver      (connect-client "client02" (fn [conn msg] (deliver received msg)))]
+        ;; TODO(PCP-4): Even with wait-for-connection we can still
+        ;; see a race in this test as we're only checking
+        ;; for *connected* and not *associated*.
+        (client/wait-for-connection sender 1000)
+        (client/wait-for-connection receiver 1000)
         (client/send! sender message)
         (deref received)
-        (client/close receiver) ;; TODO - refactor client so we can with-open it
-        (client/close sender)
         (is (= expected-data (String. (message/get-data @received) "UTF-8")))
         (is (= (:id message) (:id @received)))
         (is (= (:message_type message) (:message_type @received)))
         (is (= (:expires message) (:expires @received)))
         (is (= (:targets message) (:targets @received)))
-        (is (= "pcp://client01.example.com/demo-client" (:sender @received)))))))
+        (is (= "pcp://client01.example.com/demo-client" (:sender @received)))
+        ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
+        (client/close receiver)
+        (client/close sender)))))
+
+(deftest connect-to-a-down-broker-test
+  (let [client (connect-client "client01" (constantly true))]
+    (is (not (client/open? client)) "Should not be connected yet")
+    (with-app-with-config
+      app
+      [broker-service jetty9-service webrouting-service metrics-service]
+      broker-config
+      (client/wait-for-connection client 5000)
+      (is (client/open? client) "Should now be connected"))
+    (Thread/sleep 1000)
+    (is (not (client/open? client)) "Shoud be disconnected")
+    ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
+    (client/close client)))
+
+(deftest send-when-not-connected-test
+  (let [client (connect-client "client01" (constantly true))]
+    (is (thrown+? [:type :puppetlabs.pcp.client/not-connected]
+                  (client/send! client (message/make-message))))
+    ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
+    (client/close client)))
+
+(deftest connect-to-a-down-up-down-up-broker-test
+  (let [client (connect-client "client01" (constantly true))]
+    (is (not (client/open? client)) "Should not be connected yet")
+    (with-app-with-config
+      app
+      [broker-service jetty9-service webrouting-service metrics-service]
+      broker-config
+      (client/wait-for-connection client 5000)
+      (is (client/open? client) "Should now be connected"))
+    (is (not (client/open? client)) "Should be disconnected")
+    (with-app-with-config
+      app
+      [broker-service jetty9-service webrouting-service metrics-service]
+      broker-config
+      (client/wait-for-connection client 5000)
+      (is (client/open? client) "Should be reconnected"))
+    ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
+    (client/close client)))
