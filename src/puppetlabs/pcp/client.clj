@@ -47,7 +47,8 @@
           :handlers Handlers
           :should-stop Object ;; promise that when delivered means should stop
           :websocket-client Object
-          :websocket-connection Object}))
+          :websocket-connection Object ;; atom of a promise that will be a connection or true
+          }))
 
 ;; connection state checkers
 (s/defn ^:always-validate state :- (s/pred ws-state?)
@@ -118,7 +119,7 @@
   "Send a message across the websocket session"
   [client :- Client message :- message/Message]
   (let [{:keys [identity websocket-connection]} client]
-    (if-not (realized? @websocket-connection)
+    (if-not (and (realized? @websocket-connection) (not (= true @@websocket-connection)))
       (throw+ {:type ::not-connected})
       (ws/send-msg @@websocket-connection
                    (message/encode (assoc message :sender identity))))
@@ -194,7 +195,7 @@
         client (merge params {:identity (make-identity cert type)
                               :state (atom :connecting :validator ws-state?)
                               :websocket-client (make-websocket-client params)
-                              :websocket-connection (atom (future "To be a connection later"))
+                              :websocket-connection (atom (future true))
                               :handlers handlers
                               :should-stop (promise)})
         {:keys [websocket-connection]} client]
@@ -214,11 +215,12 @@
   "Close the connection"
   [client :- Client]
   (let [{:keys [should-stop websocket-client websocket-connection]} client]
+    ;; NOTE:  This true value is also the sentinel for make-connection
     (deliver should-stop true)
     (when (contains? #{:opening :open} (state client))
       (log/debug "Closing")
       (reset! (:state client) :closing)
       (.stop websocket-client))
-    (when (realized? @websocket-connection)
-      (ws/close @@websocket-connection))
-    true))
+    (if (and (realized? @websocket-connection) (not (= true @@websocket-connection)))
+      (ws/close @@websocket-connection)))
+  true)
