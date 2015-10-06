@@ -87,7 +87,7 @@
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
-      (client/wait-for-connection client 5000)
+      (client/wait-for-connection client 10000)
       (is (client/open? client) "Should now be connected"))
     (Thread/sleep 1000)
     (is (not (client/open? client)) "Shoud be disconnected")
@@ -108,14 +108,14 @@
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
-      (client/wait-for-connection client 5000)
+      (client/wait-for-connection client 10000)
       (is (client/open? client) "Should now be connected"))
     (is (not (client/open? client)) "Should be disconnected")
     (with-app-with-config
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
-      (client/wait-for-connection client 5000)
+      (client/wait-for-connection client 10000)
       (is (client/open? client) "Should be reconnected"))
     ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
     (client/close client)))
