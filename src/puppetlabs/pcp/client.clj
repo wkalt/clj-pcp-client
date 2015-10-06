@@ -95,9 +95,11 @@
 
 (s/defn ^:always-validate ^:private session-association-message :- Message
   [client :- Client]
-  (-> (message/make-message :message_type "http://puppetlabs.com/associate_request"
-                            :targets ["pcp:///server"])
-      (message/set-expiry 3 :seconds)))
+  (let [{:keys [identity]} client]
+    (-> (message/make-message :message_type "http://puppetlabs.com/associate_request"
+                              :sender identity
+                              :targets ["pcp:///server"])
+        (message/set-expiry 3 :seconds))))
 
 (defn fallback-handler
   "The handler to use when no handler matches"
@@ -163,7 +165,9 @@
                         :on-connect (fn [session]
                                       (log/debug "WebSocket connected")
                                       (reset! state :open)
-                                      (send! client (session-association-message client))
+                                      (let [message (session-association-message client)
+                                            buffer  (ByteBuffer/wrap (message/encode message))]
+                                        (.. session (getRemote) (sendBytes buffer)))
                                       (log/debug "sent associate session request"))
                         :on-error (fn [error]
                                     (log/error error "WebSocket error"))
