@@ -14,7 +14,8 @@
 (def broker-config
   "A broker with ssl and own spool"
   {:webserver {:ssl-host     "127.0.0.1"
-               :ssl-port     8081
+               ;; Default port is 8142.  Use 8143 here so we don't clash.
+               :ssl-port     8143
                :client-auth  "want"
                :ssl-key      "./test-resources/ssl/private_keys/broker.example.com.pem"
                :ssl-cert     "./test-resources/ssl/certs/broker.example.com.pem"
@@ -38,7 +39,7 @@
 (defn connect-controller
   [controller-id handler-function]
   (client/connect
-   {:server      "wss://localhost:8081/pcp/"
+   {:server      "wss://localhost:8143/pcp/"
     :cert        (str "test-resources/ssl/certs/" controller-id ".example.com.pem")
     :private-key (str "test-resources/ssl/private_keys/" controller-id ".example.com.pem")
     :cacert      "test-resources/ssl/certs/ca.pem"

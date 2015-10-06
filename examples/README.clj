@@ -23,7 +23,7 @@
 
 ;; connecting with handlers
 (def conn (client/connect
-            {:server      "wss://localhost:8090/pcp/"
+            {:server      "wss://localhost:8142/pcp/"
              :cert        "test-resources/ssl/certs/client03.example.com.pem"
              :private-key "test-resources/ssl/private_keys/client03.example.com.pem"
              :cacert      "test-resources/ssl/certs/ca.pem"
