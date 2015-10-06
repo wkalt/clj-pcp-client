@@ -45,7 +45,7 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.2.1"]
+  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.2.2"]
                                   [puppetlabs/trapperkeeper "1.1.1" :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink "1.1.0" :classifier "test" :scope "test"]]}
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
