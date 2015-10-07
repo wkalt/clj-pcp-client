@@ -68,3 +68,8 @@ the following to your project.clj
 
 (client/close conn)
 ```
+
+# Support
+
+We use the [Puppet Communications Protocol project on JIRA](https://tickets.puppetlabs.com/browse/PCP)
+with the component `clj-pcp-client` for tickets on `puppetlabs/pcp-client`.
