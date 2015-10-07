@@ -11,7 +11,28 @@
             (org.eclipse.jetty.websocket.client WebSocketClient)
             (org.eclipse.jetty.util.ssl SslContextFactory)))
 
-;; WebSocket connection state values
+(defprotocol ClientInterface
+  "client interface - make one with connect"
+  (state [client]
+    "Returns the current state of the client")
+  (connecting? [client]
+    "Returns true if the client is in the state :connecting")
+  (open? [client]
+    "Returns true if the client is in the state :open")
+  (closing? [client]
+    "Returns true if the clinet is in the state :closing")
+  (closed? [client]
+    "Returns true if the client is in the state :closed")
+  (wait-for-connection [client timeout-ms]
+    "Wait up to timeout-ms for a connection to be established.
+    Returns the client if the connection has been established, else nil")
+  (send! [client message]
+    "Send a message across the currently connected client.  Will
+    raise ::not-connected if the client is not currently connected to
+    a broker.")
+  (close [client]
+    "Close the connection.  Once the client is close you will need a
+    new one."))
 
 (def ws-states #{:connecting
                  :open
@@ -19,16 +40,6 @@
                  :closed})
 
 (defn ws-state? [x] (contains? ws-states x))
-
-;; schemas
-
-(def ConnectParams
-  "schema for connection parameters"
-  {:server s/Str
-   :cacert s/Str
-   :cert s/Str
-   :private-key s/Str
-   :type s/Str})
 
 (def WSState
   "schema for an atom referring to a WebSocket connection state"
@@ -39,59 +50,51 @@
   keyword keys are special handlers (like :default)"
   {(s/either s/Str s/Keyword) (s/pred fn?)})
 
-(def Client
-  "schema for a client"
-  (merge ConnectParams
-         {:identity p/Uri
-          :state WSState
-          :handlers Handlers
-          :should-stop Object ;; promise that when delivered means should stop
-          :websocket-client Object
-          :websocket-connection Object ;; atom of a promise that will be a connection or true
-          }))
+;; forward declare implementations of protocol functions.  We prefix
+;; with the dash so they're not clashing with the versions defined by
+;; ClientInterface
+(declare -state -connecting? -open? -closing? -closed?
+         -wait-for-connection -send! -close)
+
+(s/defrecord Client
+  [server :- s/Str
+   identity :- p/Uri
+   state :- WSState
+   handlers :- Handlers
+   should-stop ;; promise that when delivered means should stop
+   websocket-connection ;; atom of a promise that will be a connection or true
+   websocket-client]
+  ClientInterface
+  (state [client] (-state client))
+  (connecting? [client] (-connecting? client))
+  (open? [client] (-open? client))
+  (closing? [client] (-closing? client))
+  (closed? [client] (-closed? client))
+  (wait-for-connection [client timeout] (-wait-for-connection client timeout))
+  (send! [client message] (-send! client message))
+  (close [client] (-close client)))
 
 ;; connection state checkers
-(s/defn ^:always-validate state :- (s/pred ws-state?)
-  [client]
+(s/defn ^:always-validate ^:private -state :- (s/pred ws-state?)
+  [client :- Client]
   @(:state client))
 
-(s/defn ^:always-validate connecting? :- s/Bool
+(s/defn ^:always-validate ^:private -connecting? :- s/Bool
   [client :- Client]
   (= (state client) :connecting))
 
-(s/defn ^:always-validate open? :- s/Bool
+(s/defn ^:always-validate -open? :- s/Bool
   [client :- Client]
   (= (state client) :open))
 
-(s/defn ^:always-validate closing? :- s/Bool
+(s/defn ^:always-validate ^:private -closing? :- s/Bool
   [client :- Client]
   (= (state client) :closing))
 
-(s/defn ^:always-validate closed? :- s/Bool
+(s/defn ^:always-validate ^:private -closed? :- s/Bool
   [client :- Client]
   (= (state client) :closed))
 
-;; private helpers for the ssl/websockets setup
-
-(defn- make-ssl-context
-  "Returns an SslContextFactory that does client authentication based on the
-  client certificate named"
-  ^SslContextFactory
-  [params]
-  (let [factory (SslContextFactory.)
-        {:keys [cert private-key cacert]} params
-        ssl-context (ssl-utils/pems->ssl-context cert private-key cacert)]
-    (.setSslContext factory ssl-context)
-    (.setNeedClientAuth factory true)
-    factory))
-
-(defn- make-websocket-client
-  "Returns a WebSocketClient with the correct SSL context"
-  ^WebSocketClient
-  [params]
-  (let [client (WebSocketClient. (make-ssl-context params))]
-    (.start client)
-    client))
 
 (s/defn ^:always-validate ^:private session-association-message :- Message
   [client :- Client]
@@ -101,13 +104,13 @@
                               :targets ["pcp:///server"])
         (message/set-expiry 3 :seconds))))
 
-(defn fallback-handler
+(s/defn ^:always-validate ^:private fallback-handler
   "The handler to use when no handler matches"
-  [client message]
+  [client :- Client message :- Message]
   (log/debug "no handler for " message))
 
-(defn dispatch-message
-  [client message]
+(s/defn ^:always-validate ^:private dispatch-message
+  [client :- Client message :- Message]
   (let [message-type (:message_type message)
         handlers (:handlers client)
         handler (or (get handlers message-type)
@@ -115,19 +118,9 @@
                     fallback-handler)]
     (handler client message)))
 
-;; synchronous interface
-
-(s/defn ^:always-validate send! :- s/Bool
-  "Send a message across the websocket session"
-  [client :- Client message :- message/Message]
-  (let [{:keys [identity websocket-connection]} client]
-    (if-not (and (realized? @websocket-connection) (not (= true @@websocket-connection)))
-      (throw+ {:type ::not-connected})
-      (ws/send-msg @@websocket-connection
-                   (message/encode (assoc message :sender identity))))
-    true))
-
 (s/defn ^:always-validate ^:private make-identity :- p/Uri
+  "extracts the common name from the named certificate and forms a PCP
+  Uri with it and the supplied type"
   [certificate type]
   (let [x509     (ssl-utils/pem->cert certificate)
         cn       (ssl-utils/get-cn-from-x509-certificate x509)
@@ -193,21 +186,8 @@
               (throw+)))
           (recur (min maximum-sleep (* retry-sleep sleep-multiplier)))))))
 
-(s/defn ^:always-validate connect :- Client
-  [params :- ConnectParams handlers :- Handlers]
-  (let [{:keys [cert type]} params
-        client (merge params {:identity (make-identity cert type)
-                              :state (atom :connecting :validator ws-state?)
-                              :websocket-client (make-websocket-client params)
-                              :websocket-connection (atom (future true))
-                              :handlers handlers
-                              :should-stop (promise)})
-        {:keys [websocket-connection]} client]
-    (.start (Thread. (partial heartbeat client)))
-    (reset! websocket-connection (future (make-connection client)))
-    client))
 
-(s/defn ^:always-validate wait-for-connection :- (s/maybe Client)
+(s/defn ^:always-validate -wait-for-connection :- (s/maybe Client)
   "Waits until a client is connected.  If timeout is hit, returns falsey"
   [client :- Client timeout :- s/Num]
   (let [{:keys [websocket-connection]} client]
@@ -215,16 +195,70 @@
       client
       nil)))
 
-(s/defn ^:always-validate close :- s/Bool
+(s/defn ^:always-validate ^:private -send! :- s/Bool
+  "Send a message across the websocket session"
+  [client :- Client message :- message/Message]
+  (let [{:keys [identity websocket-connection]} client]
+    (if-not (and (realized? @websocket-connection) (not (= true @@websocket-connection)))
+      (throw+ {:type ::not-connected})
+      (ws/send-msg @@websocket-connection
+                   (message/encode (assoc message :sender identity))))
+    true))
+
+(s/defn ^:always-validate -close :- s/Bool
   "Close the connection"
   [client :- Client]
+  (log/debug "Closing")
   (let [{:keys [should-stop websocket-client websocket-connection]} client]
     ;; NOTE:  This true value is also the sentinel for make-connection
     (deliver should-stop true)
     (when (contains? #{:opening :open} (state client))
-      (log/debug "Closing")
       (reset! (:state client) :closing)
       (.stop websocket-client))
     (if (and (realized? @websocket-connection) (not (= true @@websocket-connection)))
       (ws/close @@websocket-connection)))
   true)
+
+(def ConnectParams
+  "schema for connection parameters"
+  {:server s/Str
+   :cacert s/Str
+   :cert s/Str
+   :private-key s/Str
+   :type s/Str})
+
+;; private helpers for the ssl/websockets setup
+(s/defn ^:always-validate ^:private make-ssl-context :- SslContextFactory
+  "Returns an SslContextFactory that does client authentication based on the
+  client certificate named"
+  [params]
+  (let [factory (SslContextFactory.)
+        {:keys [cert private-key cacert]} params
+        ssl-context (ssl-utils/pems->ssl-context cert private-key cacert)]
+    (.setSslContext factory ssl-context)
+    (.setNeedClientAuth factory true)
+    factory))
+
+(s/defn ^:always-validate ^:private make-websocket-client :- WebSocketClient
+  "Returns a WebSocketClient with the correct SSL context"
+  [params :- ConnectParams]
+  (let [client (WebSocketClient. (make-ssl-context params))]
+    (.start client)
+    client))
+
+(s/defn ^:always-validate connect :- Client
+  "Asyncronously establishes a connection to a pcp-broker named by
+  `:server`.  Returns a Client"
+  [params :- ConnectParams handlers :- Handlers]
+  (let [{:keys [cert type server]} params
+        client (map->Client {:server server
+                             :identity (make-identity cert type)
+                             :state (atom :connecting :validator ws-state?)
+                             :websocket-client (make-websocket-client params)
+                             :websocket-connection (atom (future true))
+                             :handlers handlers
+                             :should-stop (promise)})
+        {:keys [websocket-connection]} client]
+    (.start (Thread. (partial heartbeat client)))
+    (reset! websocket-connection (future (make-connection client)))
+    client))

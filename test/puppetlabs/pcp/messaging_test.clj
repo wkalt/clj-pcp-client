@@ -60,28 +60,25 @@
                               (message/set-data (byte-array (.getBytes expected-data "UTF-8")))
                               (assoc :targets      ["pcp://client02.example.com/demo-client"]
                                      :message_type "example/any_schema"))
-            received      (promise)
-            sender        (connect-client "client01" (constantly true))
-            receiver      (connect-client "client02" (fn [conn msg] (deliver received msg)))]
-        ;; TODO(PCP-4): Even with wait-for-connection we can still
-        ;; see a race in this test as we're only checking
-        ;; for *connected* and not *associated*.
-        (client/wait-for-connection sender 1000)
-        (client/wait-for-connection receiver 1000)
-        (client/send! sender message)
-        (deref received)
-        (is (= expected-data (String. (message/get-data @received) "UTF-8")))
-        (is (= (:id message) (:id @received)))
-        (is (= (:message_type message) (:message_type @received)))
-        (is (= (:expires message) (:expires @received)))
-        (is (= (:targets message) (:targets @received)))
-        (is (= "pcp://client01.example.com/demo-client" (:sender @received)))
-        ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
-        (client/close receiver)
-        (client/close sender)))))
+            received      (promise)]
+        (with-open [sender        (connect-client "client01" (constantly true))
+                    receiver      (connect-client "client02" (fn [conn msg] (deliver received msg)))]
+          ;; TODO(PCP-4): Even with wait-for-connection we can still
+          ;; see a race in this test as we're only checking
+          ;; for *connected* and not *associated*.
+          (client/wait-for-connection sender 1000)
+          (client/wait-for-connection receiver 1000)
+          (client/send! sender message)
+          (deref received)
+          (is (= expected-data (String. (message/get-data @received) "UTF-8")))
+          (is (= (:id message) (:id @received)))
+          (is (= (:message_type message) (:message_type @received)))
+          (is (= (:expires message) (:expires @received)))
+          (is (= (:targets message) (:targets @received)))
+          (is (= "pcp://client01.example.com/demo-client" (:sender @received))))))))
 
 (deftest connect-to-a-down-broker-test
-  (let [client (connect-client "client01" (constantly true))]
+  (with-open [client (connect-client "client01" (constantly true))]
     (is (not (client/open? client)) "Should not be connected yet")
     (with-app-with-config
       app
@@ -90,19 +87,15 @@
       (client/wait-for-connection client 10000)
       (is (client/open? client) "Should now be connected"))
     (Thread/sleep 1000)
-    (is (not (client/open? client)) "Shoud be disconnected")
-    ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
-    (client/close client)))
+    (is (not (client/open? client)) "Shoud be disconnected")))
 
 (deftest send-when-not-connected-test
-  (let [client (connect-client "client01" (constantly true))]
+  (with-open [client (connect-client "client01" (constantly true))]
     (is (thrown+? [:type :puppetlabs.pcp.client/not-connected]
-                  (client/send! client (message/make-message))))
-    ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
-    (client/close client)))
+                  (client/send! client (message/make-message))))))
 
 (deftest connect-to-a-down-up-down-up-broker-test
-  (let [client (connect-client "client01" (constantly true))]
+  (with-open [client (connect-client "client01" (constantly true))]
     (is (not (client/open? client)) "Should not be connected yet")
     (with-app-with-config
       app
@@ -116,6 +109,4 @@
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
       (client/wait-for-connection client 10000)
-      (is (client/open? client) "Should be reconnected"))
-    ;; TODO(PCP-43) - refactor client so we can with-open it, avoiding need to explicit close
-    (client/close client)))
+      (is (client/open? client) "Should be reconnected"))))

@@ -70,7 +70,7 @@
   "Connect to the broker and wait for requests"
   []
   (log/info "### connecting")
-  (let [agent (client/connect agent-params agent-handlers)]
+  (with-open [agent (client/connect agent-params agent-handlers)]
        (log/info "### connected")
        (while (contains? #{:closing :closed} (client/state agent))
               (Thread/sleep 1000))

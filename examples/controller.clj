@@ -52,7 +52,7 @@
   "Connect to the broker and send a request to the agent"
   []
   (log/info "### connecting")
-  (let [cl (client/connect controller-params controller-handlers)]
+  (with-open [cl (client/connect controller-params controller-handlers)]
        (log/info "### sending inventory request")
        (client/send!
          cl
@@ -71,7 +71,6 @@
                     :message_type "example/request")
              (message/set-json-data {:action "demo"})))
        (log/info "### waiting for 60 s")
-       (Thread/sleep 60000)
-       (client/close cl)))
+       (Thread/sleep 60000)))
 
 (time (start))
