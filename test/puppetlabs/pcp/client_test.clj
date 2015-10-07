@@ -6,17 +6,13 @@
 (defn make-test-client
   "A dummied up client object"
   []
-  {:server ""
-   :cacert ""
-   :cert ""
-   :private-key ""
-   :type ""
-   :identity "pcp://the_identity/the_type"
-   :state (atom :connecting)
-   :websocket-client ""
-   :websocket-connection ""
-   :handlers {}
-   :should-stop (promise)})
+  (map->Client {:server "wss://localhost:8142/pcp/v1"
+                :identity "pcp://the_identity/the_type"
+                :state (atom :connecting)
+                :websocket-client ""
+                :websocket-connection (atom (future true))
+                :handlers {}
+                :should-stop (promise)}))
 
 (deftest state-checkers-test
   (let [client (make-test-client)]
@@ -34,23 +30,25 @@
       (is (= "http://puppetlabs.com/associate_request"
              (:message_type message))))))
 
+(def dispatch-message #'puppetlabs.pcp.client/dispatch-message)
 (deftest dispatch-message-test
   (with-redefs [puppetlabs.pcp.client/fallback-handler (fn [c m] "fallback")]
     (testing "should fall back to fallback-handler with no :default"
       (is (= "fallback"
-             (dispatch-message {:handlers {}} {:message_type "foo"})))))
+             (dispatch-message (assoc (make-test-client) :handlers {})
+                               (message/make-message :message_type "foo"))))))
 
-  (let [client {:handlers {"foo" (fn [c m] "foo")
-                           :default (fn [c m] "default")}}]
+  (let [client (assoc (make-test-client)
+                      :handlers {"foo" (fn [c m] "foo")
+                                 :default (fn [c m] "default")})]
 
     (testing "default handler should match when supplied"
       (is (= "foo"
-             (dispatch-message client {:message_type "foo"})))
+             (dispatch-message client (message/make-message :message_type "foo"))))
       (is (= "default"
-             (dispatch-message client {:message_type "bar"}))))))
+             (dispatch-message client (message/make-message :message_type "bar")))))))
 
 (def make-identity #'puppetlabs.pcp.client/make-identity)
-
 (deftest make-identity-test
   (is (= "pcp://broker.example.com/test"
          (make-identity "test-resources/ssl/certs/broker.example.com.pem" "test"))))
