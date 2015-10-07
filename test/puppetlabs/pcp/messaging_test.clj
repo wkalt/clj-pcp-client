@@ -84,8 +84,9 @@
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
-      (client/wait-for-connection client 10000)
+      (client/wait-for-connection client (* 40 1000))
       (is (client/open? client) "Should now be connected"))
+    ;; allow the broker having gone down to be detected
     (Thread/sleep 1000)
     (is (not (client/open? client)) "Shoud be disconnected")))
 
@@ -101,12 +102,12 @@
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
-      (client/wait-for-connection client 10000)
+      (client/wait-for-connection client (* 40 1000))
       (is (client/open? client) "Should now be connected"))
     (is (not (client/open? client)) "Should be disconnected")
     (with-app-with-config
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
-      (client/wait-for-connection client 10000)
+      (client/wait-for-connection client (* 40 1000))
       (is (client/open? client) "Should be reconnected"))))

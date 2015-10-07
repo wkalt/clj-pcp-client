@@ -148,7 +148,7 @@
   (let [{:keys [server websocket-client state should-stop]} client
         initial-sleep 200
         sleep-multiplier 2
-        maximum-sleep (* 30 1000)]
+        maximum-sleep (* 15 1000)]
     (reset! state :connecting)
     (loop [retry-sleep initial-sleep]
       (or (try+
