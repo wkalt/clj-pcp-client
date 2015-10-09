@@ -103,7 +103,7 @@
   [client :- Client]
   (= (state client) :connecting))
 
-(s/defn ^:always-validate -open? :- s/Bool
+(s/defn ^:always-validate ^:private -open? :- s/Bool
   [client :- Client]
   (= (state client) :open))
 
