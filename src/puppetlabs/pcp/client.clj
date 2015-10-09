@@ -23,9 +23,22 @@
     "Returns true if the clinet is in the state :closing")
   (closed? [client]
     "Returns true if the client is in the state :closed")
+  (associated? [client]
+    "Returns true if the client has been successfully assocated with a broker")
+  (associate-response-received? [client]
+    "Returns true if the client has recieved an association response")
   (wait-for-connection [client timeout-ms]
     "Wait up to timeout-ms for a connection to be established.
     Returns the client if the connection has been established, else nil")
+  (wait-for-association [client timeout-ms]
+    "Wait up to timeout-ms for a connection to be associated.  Returns the client if
+     the connection has been associated, else nil.
+
+     NOTE: There are two ways assocation may fail, we may not have
+     recieved an association response in the timeout specified, or the
+     association request may have been denied.  Check
+     associate-response-received? and associated? if you are
+     interested in detecting the difference.")
   (send! [client message]
     "Send a message across the currently connected client.  Will
     raise ::not-connected if the client is not currently connected to
@@ -53,8 +66,10 @@
 ;; forward declare implementations of protocol functions.  We prefix
 ;; with the dash so they're not clashing with the versions defined by
 ;; ClientInterface
-(declare -state -connecting? -open? -closing? -closed?
-         -wait-for-connection -send! -close)
+(declare -state -connecting? -open?
+         -associated? -associate-response-received?
+         -closing? -closed?
+         -wait-for-connection -wait-for-association -send! -close)
 
 (s/defrecord Client
   [server :- s/Str
@@ -63,14 +78,19 @@
    handlers :- Handlers
    should-stop ;; promise that when delivered means should stop
    websocket-connection ;; atom of a promise that will be a connection or true
-   websocket-client]
+   websocket-client
+   associate-response ;; atom of a promise that will be a boolean
+   ]
   ClientInterface
   (state [client] (-state client))
   (connecting? [client] (-connecting? client))
   (open? [client] (-open? client))
+  (associated? [client] (-associated? client))
+  (associate-response-received? [client] (-associate-response-received? client))
   (closing? [client] (-closing? client))
   (closed? [client] (-closed? client))
   (wait-for-connection [client timeout] (-wait-for-connection client timeout))
+  (wait-for-association [client timeout] (-wait-for-association client timeout))
   (send! [client message] (-send! client message))
   (close [client] (-close client)))
 
@@ -83,9 +103,19 @@
   [client :- Client]
   (= (state client) :connecting))
 
-(s/defn ^:always-validate -open? :- s/Bool
+(s/defn ^:always-validate ^:private -open? :- s/Bool
   [client :- Client]
   (= (state client) :open))
+
+(s/defn ^:always-validate ^:private -associated? :- s/Bool
+  [client :- Client]
+  (let [{:keys [associate-response]} client]
+    (and (realized? @associate-response) @@associate-response)))
+
+(s/defn ^:always-validate ^:private -associate-response-received? :- s/Bool
+  [client :- Client]
+  (let [{:keys [associate-response]} client]
+    (realized? @associate-response)))
 
 (s/defn ^:always-validate ^:private -closing? :- s/Bool
   [client :- Client]
@@ -95,7 +125,6 @@
   [client :- Client]
   (= (state client) :closed))
 
-
 (s/defn ^:always-validate ^:private session-association-message :- Message
   [client :- Client]
   (let [{:keys [identity]} client]
@@ -103,6 +132,15 @@
                               :sender identity
                               :targets ["pcp:///server"])
         (message/set-expiry 3 :seconds))))
+
+(s/defn ^:always-validate ^:private associate-response-handler
+  [client :- Client message :- Message]
+  (let [data (message/get-json-data message)
+        {:keys [success]} data
+        {:keys [associate-response]} client]
+    (s/validate p/AssociateResponse data)
+    (log/debug "Received associate_response message" message data)
+    (deliver @associate-response success)))
 
 (s/defn ^:always-validate ^:private fallback-handler
   "The handler to use when no handler matches"
@@ -145,7 +183,7 @@
 (s/defn ^:always-validate ^:private make-connection :- Object
   "Returns a connected websocket connection"
   [client :- Client]
-  (let [{:keys [server websocket-client state should-stop]} client
+  (let [{:keys [server websocket-client associate-response state should-stop]} client
         initial-sleep 200
         sleep-multiplier 2
         maximum-sleep (* 15 1000)]
@@ -167,6 +205,7 @@
                         :on-close (fn [code message]
                                     (log/debug "WebSocket closed" code message)
                                     (reset! state :closed)
+                                    (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       (when (not (realized? should-stop))
                                         (reset! websocket-connection (future (make-connection client))))))
@@ -192,6 +231,14 @@
   [client :- Client timeout :- s/Num]
   (let [{:keys [websocket-connection]} client]
     (if (deref @websocket-connection timeout nil)
+      client
+      nil)))
+
+(s/defn ^:always-validate -wait-for-association :- (s/maybe Client)
+  "Waits until a client is associated.  If timeout is hit, or the association doesn't work, returns falsey"
+  [client :- Client timeout :- s/Num]
+  (let [{:keys [associate-response]} client]
+    (if (deref @associate-response timeout nil)
       client
       nil)))
 
@@ -256,7 +303,9 @@
                              :state (atom :connecting :validator ws-state?)
                              :websocket-client (make-websocket-client params)
                              :websocket-connection (atom (future true))
-                             :handlers handlers
+                             :associate-response (atom (promise))
+                             :handlers (assoc handlers
+                                              "http://puppetlabs.com/associate_response" associate-response-handler)
                              :should-stop (promise)})
         {:keys [websocket-connection]} client]
     (.start (Thread. (partial heartbeat client)))

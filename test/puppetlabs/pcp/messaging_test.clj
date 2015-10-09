@@ -63,11 +63,10 @@
             received      (promise)]
         (with-open [sender        (connect-client "client01" (constantly true))
                     receiver      (connect-client "client02" (fn [conn msg] (deliver received msg)))]
-          ;; TODO(PCP-4): Even with wait-for-connection we can still
-          ;; see a race in this test as we're only checking
-          ;; for *connected* and not *associated*.
-          (client/wait-for-connection sender 1000)
-          (client/wait-for-connection receiver 1000)
+          (client/wait-for-connection sender (* 40 1000))
+          (client/wait-for-association sender (* 40 1000))
+          (client/wait-for-connection receiver (* 40 1000))
+          (client/wait-for-association receiver (* 40 1000))
           (client/send! sender message)
           (deref received)
           (is (= expected-data (String. (message/get-data @received) "UTF-8")))
@@ -86,9 +85,7 @@
       broker-config
       (client/wait-for-connection client (* 40 1000))
       (is (client/open? client) "Should now be connected"))
-    ;; allow the broker having gone down to be detected
-    (Thread/sleep 1000)
-    (is (not (client/open? client)) "Shoud be disconnected")))
+    (is (not (client/open? client)) "Should be disconnected")))
 
 (deftest send-when-not-connected-test
   (with-open [client (connect-client "client01" (constantly true))]
@@ -111,3 +108,13 @@
       broker-config
       (client/wait-for-connection client (* 40 1000))
       (is (client/open? client) "Should be reconnected"))))
+
+(deftest association-checkers-test
+  (with-app-with-config
+    app
+    [broker-service jetty9-service webrouting-service metrics-service]
+    broker-config
+    (with-open [client (connect-client "client01" (constantly true))]
+      (is (= client (client/wait-for-association client (* 40 1000))))
+      (is (= true (client/associate-response-received? client)))
+      (is (= true (client/associated? client))))))

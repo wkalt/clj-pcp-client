@@ -1,7 +1,8 @@
 (ns puppetlabs.pcp.client-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.pcp.client :refer :all]
-            [puppetlabs.pcp.message :as message]))
+            [puppetlabs.pcp.client :refer :all :as client]
+            [puppetlabs.pcp.message :as message]
+            [slingshot.test]))
 
 (defn make-test-client
   "A dummied up client object"
@@ -11,6 +12,7 @@
                 :state (atom :connecting)
                 :websocket-client ""
                 :websocket-connection (atom (future true))
+                :associate-response (atom (promise))
                 :handlers {}
                 :should-stop (promise)}))
 
@@ -29,6 +31,20 @@
     (testing "message with the correct type"
       (is (= "http://puppetlabs.com/associate_request"
              (:message_type message))))))
+
+(def associate-response-handler #'puppetlabs.pcp.client/associate-response-handler)
+(deftest associate-response-handler-test
+  (let [message (message/make-message)
+        message (message/set-json-data message {:success true :id (:id message)})
+        client (make-test-client)]
+    (testing "it delivers the promise"
+      (associate-response-handler client message)
+      (is (= true (client/associate-response-received? client)))
+      (is (= true (client/associated? client))))
+    (testing "it throws on bad message"
+      (let [bad-message (message/set-json-data message "badness")]
+        (is (thrown+? [:type :schema.core/error]
+                      (associate-response-handler client bad-message)))))))
 
 (def dispatch-message #'puppetlabs.pcp.client/dispatch-message)
 (deftest dispatch-message-test
