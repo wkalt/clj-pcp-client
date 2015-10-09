@@ -78,36 +78,36 @@
 
 (deftest connect-to-a-down-broker-test
   (with-open [client (connect-client "client01" (constantly true))]
-    (is (not (client/open? client)) "Should not be connected yet")
+    (is (not (client/connected? client)) "Should not be connected yet")
     (with-app-with-config
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
       (client/wait-for-connection client (* 40 1000))
-      (is (client/open? client) "Should now be connected"))
-    (is (not (client/open? client)) "Should be disconnected")))
+      (is (client/connected? client) "Should now be connected"))
+    (is (not (client/connected? client)) "Should be disconnected")))
 
 (deftest send-when-not-connected-test
   (with-open [client (connect-client "client01" (constantly true))]
-    (is (thrown+? [:type :puppetlabs.pcp.client/not-connected]
+    (is (thrown+? [:type :puppetlabs.pcp.client/not-associated]
                   (client/send! client (message/make-message))))))
 
 (deftest connect-to-a-down-up-down-up-broker-test
   (with-open [client (connect-client "client01" (constantly true))]
-    (is (not (client/open? client)) "Should not be connected yet")
+    (is (not (client/connected? client)) "Should not be connected yet")
     (with-app-with-config
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
       (client/wait-for-connection client (* 40 1000))
-      (is (client/open? client) "Should now be connected"))
-    (is (not (client/open? client)) "Should be disconnected")
+      (is (client/connected? client) "Should now be connected"))
+    (is (not (client/connected? client)) "Should be disconnected")
     (with-app-with-config
       app
       [broker-service jetty9-service webrouting-service metrics-service]
       broker-config
       (client/wait-for-connection client (* 40 1000))
-      (is (client/open? client) "Should be reconnected"))))
+      (is (client/connected? client) "Should be reconnected"))))
 
 (deftest association-checkers-test
   (with-app-with-config
@@ -116,5 +116,5 @@
     broker-config
     (with-open [client (connect-client "client01" (constantly true))]
       (is (= client (client/wait-for-association client (* 40 1000))))
-      (is (= true (client/associate-response-received? client)))
+      (is (= false (client/associating? client)))
       (is (= true (client/associated? client))))))

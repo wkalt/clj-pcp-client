@@ -13,20 +13,14 @@
 
 (defprotocol ClientInterface
   "client interface - make one with connect"
-  (state [client]
-    "Returns the current state of the client")
   (connecting? [client]
-    "Returns true if the client is in the state :connecting")
-  (open? [client]
-    "Returns true if the client is in the state :open")
-  (closing? [client]
-    "Returns true if the clinet is in the state :closing")
-  (closed? [client]
-    "Returns true if the client is in the state :closed")
+    "Returns true if the client is currently connecting to the pcp-broker")
+  (connected? [client]
+    "Returns true if the client is currently connected to the pcp-broker")
+  (associating? [client]
+    "Returns true if the client has not yet recieved an association response")
   (associated? [client]
     "Returns true if the client has been successfully assocated with a broker")
-  (associate-response-received? [client]
-    "Returns true if the client has recieved an association response")
   (wait-for-connection [client timeout-ms]
     "Wait up to timeout-ms for a connection to be established.
     Returns the client if the connection has been established, else nil")
@@ -36,9 +30,8 @@
 
      NOTE: There are two ways assocation may fail, we may not have
      recieved an association response in the timeout specified, or the
-     association request may have been denied.  Check
-     associate-response-received? and associated? if you are
-     interested in detecting the difference.")
+     association request may have been denied.  Check associating? and
+     associated? if you are interested in detecting the difference.")
   (send! [client message]
     "Send a message across the currently connected client.  Will
     raise ::not-connected if the client is not currently connected to
@@ -46,17 +39,6 @@
   (close [client]
     "Close the connection.  Once the client is close you will need a
     new one."))
-
-(def ws-states #{:connecting
-                 :open
-                 :closing
-                 :closed})
-
-(defn ws-state? [x] (contains? ws-states x))
-
-(def WSState
-  "schema for an atom referring to a WebSocket connection state"
-  (s/pred (comp ws-state? deref)))
 
 (def Handlers
   "schema for handler map.  String keys are data_schema handlers,
@@ -66,15 +48,13 @@
 ;; forward declare implementations of protocol functions.  We prefix
 ;; with the dash so they're not clashing with the versions defined by
 ;; ClientInterface
-(declare -state -connecting? -open?
-         -associated? -associate-response-received?
-         -closing? -closed?
+(declare -connecting? -connected?
+         -associating? -associated?
          -wait-for-connection -wait-for-association -send! -close)
 
 (s/defrecord Client
   [server :- s/Str
    identity :- p/Uri
-   state :- WSState
    handlers :- Handlers
    should-stop ;; promise that when delivered means should stop
    websocket-connection ;; atom of a promise that will be a connection or true
@@ -82,48 +62,34 @@
    associate-response ;; atom of a promise that will be a boolean
    ]
   ClientInterface
-  (state [client] (-state client))
   (connecting? [client] (-connecting? client))
-  (open? [client] (-open? client))
+  (connected? [client] (-connected? client))
+  (associating? [client] (-associating? client))
   (associated? [client] (-associated? client))
-  (associate-response-received? [client] (-associate-response-received? client))
-  (closing? [client] (-closing? client))
-  (closed? [client] (-closed? client))
   (wait-for-connection [client timeout] (-wait-for-connection client timeout))
   (wait-for-association [client timeout] (-wait-for-association client timeout))
   (send! [client message] (-send! client message))
   (close [client] (-close client)))
 
-;; connection state checkers
-(s/defn ^:always-validate ^:private -state :- (s/pred ws-state?)
-  [client :- Client]
-  @(:state client))
-
 (s/defn ^:always-validate ^:private -connecting? :- s/Bool
   [client :- Client]
-  (= (state client) :connecting))
+  (let [{:keys [websocket-connection]} client]
+    (not (realized? @websocket-connection))))
 
-(s/defn ^:always-validate ^:private -open? :- s/Bool
+(s/defn ^:always-validate ^:private -connected? :- s/Bool
   [client :- Client]
-  (= (state client) :open))
+  (let [{:keys [websocket-connection]} client]
+    (and (realized? @websocket-connection) (not (= @@websocket-connection true)))))
+
+(s/defn ^:always-validate ^:private -associating? :- s/Bool
+  [client :- Client]
+  (let [{:keys [associate-response]} client]
+    (not (realized? @associate-response))))
 
 (s/defn ^:always-validate ^:private -associated? :- s/Bool
   [client :- Client]
   (let [{:keys [associate-response]} client]
     (and (realized? @associate-response) @@associate-response)))
-
-(s/defn ^:always-validate ^:private -associate-response-received? :- s/Bool
-  [client :- Client]
-  (let [{:keys [associate-response]} client]
-    (realized? @associate-response)))
-
-(s/defn ^:always-validate ^:private -closing? :- s/Bool
-  [client :- Client]
-  (= (state client) :closing))
-
-(s/defn ^:always-validate ^:private -closed? :- s/Bool
-  [client :- Client]
-  (= (state client) :closed))
 
 (s/defn ^:always-validate ^:private session-association-message :- Message
   [client :- Client]
@@ -183,11 +149,10 @@
 (s/defn ^:always-validate ^:private make-connection :- Object
   "Returns a connected websocket connection"
   [client :- Client]
-  (let [{:keys [server websocket-client associate-response state should-stop]} client
+  (let [{:keys [server websocket-client associate-response should-stop]} client
         initial-sleep 200
         sleep-multiplier 2
         maximum-sleep (* 15 1000)]
-    (reset! state :connecting)
     (loop [retry-sleep initial-sleep]
       (or (try+
             (log/debugf "Making connection to %s" server)
@@ -195,7 +160,6 @@
                         :client websocket-client
                         :on-connect (fn [session]
                                       (log/debug "WebSocket connected")
-                                      (reset! state :open)
                                       (let [message (session-association-message client)
                                             buffer  (ByteBuffer/wrap (message/encode message))]
                                         (.. session (getRemote) (sendBytes buffer)))
@@ -204,7 +168,6 @@
                                     (log/error error "WebSocket error"))
                         :on-close (fn [code message]
                                     (log/debug "WebSocket closed" code message)
-                                    (reset! state :closed)
                                     (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       (when (not (realized? should-stop))
@@ -246,8 +209,8 @@
   "Send a message across the websocket session"
   [client :- Client message :- message/Message]
   (let [{:keys [identity websocket-connection]} client]
-    (if-not (and (realized? @websocket-connection) (not (= true @@websocket-connection)))
-      (throw+ {:type ::not-connected})
+    (if-not (-associated? client)
+      (throw+ {:type ::not-associated})
       (ws/send-msg @@websocket-connection
                    (message/encode (assoc message :sender identity))))
     true))
@@ -259,11 +222,9 @@
   (let [{:keys [should-stop websocket-client websocket-connection]} client]
     ;; NOTE:  This true value is also the sentinel for make-connection
     (deliver should-stop true)
-    (when (contains? #{:opening :open} (state client))
-      (reset! (:state client) :closing)
-      (.stop websocket-client))
-    (if (and (realized? @websocket-connection) (not (= true @@websocket-connection)))
-      (ws/close @@websocket-connection)))
+    (if (-connected? client)
+      (ws/close @@websocket-connection))
+    (.stop websocket-client))
   true)
 
 (def ConnectParams
@@ -300,7 +261,6 @@
   (let [{:keys [cert type server]} params
         client (map->Client {:server server
                              :identity (make-identity cert type)
-                             :state (atom :connecting :validator ws-state?)
                              :websocket-client (make-websocket-client params)
                              :websocket-connection (atom (future true))
                              :associate-response (atom (promise))
