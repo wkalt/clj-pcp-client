@@ -5,10 +5,6 @@
       [puppetlabs.pcp.client :as client]
       [puppetlabs.pcp.message :as message]))
 
-(defn associate-session-handler
-      [conn msg]
-      (log/info "^^^ PCP associate session handler got message" msg))
-
 (defn pcp-error-handler
       [conn msg]
       (log/warn "^^^ PCP error handler got message" msg
@@ -61,8 +57,7 @@
    :type        "agent"})
 
 (def agent-handlers
-  {"http://puppetlabs.com/associate_response" associate-session-handler
-   "http://puppetlabs.com/error_message" pcp-error-handler
+  {"http://puppetlabs.com/error_message" pcp-error-handler
    "example/request" request-handler
    :default default-msg-handler})
 
@@ -71,8 +66,9 @@
   []
   (log/info "### connecting")
   (with-open [agent (client/connect agent-params agent-handlers)]
+       (client/wait-for-association agent (* 60 1000))
        (log/info "### connected")
-       (while (contains? #{:closing :closed} (client/state agent))
+       (while (client/connected? agent)
               (Thread/sleep 1000))
        (log/info "### connection dropped - terminating")))
 

@@ -9,7 +9,6 @@
   []
   (map->Client {:server "wss://localhost:8142/pcp/v1"
                 :identity "pcp://the_identity/the_type"
-                :state (atom :connecting)
                 :websocket-client ""
                 :websocket-connection (atom (future true))
                 :associate-response (atom (promise))
@@ -18,10 +17,10 @@
 
 (deftest state-checkers-test
   (let [client (make-test-client)]
-    (testing "successfully returns positive"
-      (is (connecting? client)))
     (testing "successfully returns negative"
-      (is (not (open? client))))))
+      (is (not (connected? client))))
+    (testing "successfully returns negative"
+      (is (not (connecting? client))))))
 
 (def session-association-message #'puppetlabs.pcp.client/session-association-message)
 (deftest session-association-message-test
@@ -38,8 +37,10 @@
         message (message/set-json-data message {:success true :id (:id message)})
         client (make-test-client)]
     (testing "it delivers the promise"
+      (is (= true (client/associating? client)))
+      (is (= false (client/associated? client)))
       (associate-response-handler client message)
-      (is (= true (client/associate-response-received? client)))
+      (is (= false (client/associating? client)))
       (is (= true (client/associated? client))))
     (testing "it throws on bad message"
       (let [bad-message (message/set-json-data message "badness")]
