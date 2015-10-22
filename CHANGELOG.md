@@ -1,3 +1,13 @@
+## 0.2.0
+
+This is a maintenance release
+
+This is the first public release to clojars
+
+* [PCP-47](https://tickets.puppetlabs.com/browse/PCP-47) Update dependencies to
+  public released versions (puppetlabs/pcp-broker 0.5.0, puppetlabs/pcp-common
+  0.5.0) and update to publish to clojars.
+
 ## 0.1.0
 
 This is a feature and maintenance release
