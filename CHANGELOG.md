@@ -1,3 +1,11 @@
+## 0.2.1
+
+This is a security release
+
+* [PCP-323](https://tickets.puppetlabs.com/browse/PCP-323) Verify the
+  certificate of the broker connected to matches the hostname that
+  was specified in the server uri.
+
 ## 0.2.0
 
 This is a maintenance release
