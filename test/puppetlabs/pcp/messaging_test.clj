@@ -26,8 +26,8 @@
                ;; Default port is 8142.  Use 8143 here so we don't clash.
                :ssl-port     8143
                :client-auth  "want"
-               :ssl-key      "./test-resources/ssl/private_keys/broker.example.com.pem"
-               :ssl-cert     "./test-resources/ssl/certs/broker.example.com.pem"
+               :ssl-key      "./test-resources/ssl/private_keys/localhost.pem"
+               :ssl-cert     "./test-resources/ssl/certs/localhost.pem"
                :ssl-ca-cert  "./test-resources/ssl/ca/ca_crt.pem"
                :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
 
@@ -94,6 +94,17 @@
       (client/wait-for-connection client (* 40 1000))
       (is (client/connected? client) "Should now be connected"))
     (is (not (client/connected? client)) "Should be disconnected")))
+
+(deftest connect-to-a-broker-with-the-wrong-name-test
+  (with-app-with-config
+    app
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
+    (update-in broker-config [:webserver] merge
+               {:ssl-key "./test-resources/ssl/private_keys/client01.example.com.pem"
+                :ssl-cert "./test-resources/ssl/certs/client01.example.com.pem"})
+    (with-open [client (connect-client "client01" (constantly true))]
+      (client/wait-for-connection client (* 4 1000))
+      (is (not (client/connected? client)) "Should never connect - ssl certificate of the broker is client01.example.com not localhost"))))
 
 (deftest send-when-not-connected-test
   (with-open [client (connect-client "client01" (constantly true))]

@@ -67,8 +67,8 @@
 
 (def make-identity #'puppetlabs.pcp.client/make-identity)
 (deftest make-identity-test
-  (is (= "pcp://broker.example.com/test"
-         (make-identity "test-resources/ssl/certs/broker.example.com.pem" "test"))))
+  (is (= "pcp://client01.example.com/test"
+         (make-identity "test-resources/ssl/certs/client01.example.com.pem" "test"))))
 
 (def make-connection #'puppetlabs.pcp.client/make-connection)
 (deftest make-connection-test

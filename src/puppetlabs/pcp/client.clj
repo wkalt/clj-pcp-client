@@ -180,6 +180,9 @@
                                        (log/debug "received bin message - offset/bytes:" offset count
                                                   "- message:" message)
                                        (dispatch-message client message))))
+            (catch javax.net.ssl.SSLHandshakeException exception
+              (log/warnf exception "TLS Handshake failed.  Sleeping for up to %dms to retry" retry-sleep)
+              (deref should-stop retry-sleep nil))
             (catch java.net.ConnectException exception
               (log/debugf exception "Didn't get connected.  Sleeping for up to %dms to retry" retry-sleep)
               (deref should-stop retry-sleep nil))
@@ -245,6 +248,7 @@
         ssl-context (ssl-utils/pems->ssl-context cert private-key cacert)]
     (.setSslContext factory ssl-context)
     (.setNeedClientAuth factory true)
+    (.setEndpointIdentificationAlgorithm factory "HTTPS")
     factory))
 
 (s/defn ^:always-validate ^:private make-websocket-client :- WebSocketClient
