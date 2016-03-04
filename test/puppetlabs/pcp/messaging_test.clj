@@ -44,17 +44,26 @@
   [conn request]
   (log/debug "Default handler got message" request))
 
-(defn connect-client
+(defn client-config
+  "returns a client config for a given cn against the test-resource/ssl ca"
+  [cn]
+  {:server      "wss://localhost:8143/pcp/"
+   :cert        (format "test-resources/ssl/certs/%s.example.com.pem" cn)
+   :private-key (format "test-resources/ssl/private_keys/%s.example.com.pem" cn)
+   :cacert      "test-resources/ssl/certs/ca.pem"
+   :type        "demo-client"})
+
+(defn connect-client-config
   "connect a client with a handler function"
-  [cn handler-function]
-  (client/connect
-   {:server      "wss://localhost:8143/pcp/"
-    :cert        (format "test-resources/ssl/certs/%s.example.com.pem" cn)
-    :private-key (format "test-resources/ssl/private_keys/%s.example.com.pem" cn)
-    :cacert      "test-resources/ssl/certs/ca.pem"
-    :type        "demo-client"}
+  [config handler-function]
+  (client/connect config
    {"example/any_schema"  handler-function
     :default              default-request-handler}))
+
+(defn connect-client
+  "connect a client with a handler function, uses default configuration strategy"
+  [cn handler-fn]
+  (connect-client-config (client-config cn) handler-fn))
 
 (deftest send-message-and-assert-received-unchanged-test
   (testing "binary payloads"
@@ -105,6 +114,29 @@
     (with-open [client (connect-client "client01" (constantly true))]
       (client/wait-for-connection client (* 4 1000))
       (is (not (client/connected? client)) "Should never connect - ssl certificate of the broker is client01.example.com not localhost"))))
+
+(deftest ssl-ca-cert-permutation-test
+  ;; This test checks that ssl verification is happening
+  ;; against the expected certificate chain.  We do this using an
+  ;; alternate signing authority (test-resources/ssl-alt), and then
+  ;; permute the ssl-ca-cert configured for client and broker.
+  (doseq [[broker-ca client-ca associates]
+          [["ssl"     "ssl"     true]  ;; well-configured case
+           ["ssl"     "ssl-alt" false] ;; client should reject server cert
+           ["ssl-alt" "ssl"     false] ;; server should reject client cert
+           ["ssl-alt" "ssl-alt" false] ;; mutual rejection
+           ]]
+    (testing (str "broker-ca: " broker-ca " client-ca: " client-ca)
+      (with-app-with-config
+        app
+        [authorization-service broker-service jetty9-service webrouting-service metrics-service]
+        (assoc-in broker-config [:webserver :ssl-ca-cert]
+                  (str "./test-resources/" broker-ca "/ca/ca_crt.pem"))
+        (with-open [client (connect-client-config (assoc (client-config "client01")
+                                                         :cacert (str "test-resources/" client-ca "/certs/ca.pem"))
+                                                  (constantly true))]
+          (client/wait-for-association client (* 4 1000))
+          (is (= associates (client/associated? client))))))))
 
 (deftest send-when-not-connected-test
   (with-open [client (connect-client "client01" (constantly true))]
