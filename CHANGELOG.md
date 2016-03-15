@@ -1,6 +1,10 @@
+## 0.2.2
+
+This is a security release.  It is the same as 0.2.1, but public.
+
 ## 0.2.1
 
-This is a security release
+This is a security release - it was only available from internal mirrors
 
 * [PCP-323](https://tickets.puppetlabs.com/browse/PCP-323) Verify the
   certificate of the broker connected to matches the hostname that
