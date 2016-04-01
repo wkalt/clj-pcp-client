@@ -61,6 +61,7 @@
    websocket-client
    associate-response ;; atom of a promise that will be a boolean
    ]
+  {(s/optional-key :user-data) s/Any} ;; a field for user data
   ClientInterface
   (connecting? [client] (-connecting? client))
   (connected? [client] (-connected? client))
@@ -236,7 +237,8 @@
    :cacert s/Str
    :cert s/Str
    :private-key s/Str
-   :type s/Str})
+   :type s/Str
+   (s/optional-key :user-data) s/Any})
 
 ;; private helpers for the ssl/websockets setup
 (s/defn ^:always-validate ^:private make-ssl-context :- SslContextFactory
@@ -262,7 +264,7 @@
   "Asyncronously establishes a connection to a pcp-broker named by
   `:server`.  Returns a Client"
   [params :- ConnectParams handlers :- Handlers]
-  (let [{:keys [cert type server]} params
+  (let [{:keys [cert type server user-data]} params
         client (map->Client {:server server
                              :identity (make-identity cert type)
                              :websocket-client (make-websocket-client params)
@@ -270,7 +272,8 @@
                              :associate-response (atom (promise))
                              :handlers (assoc handlers
                                               "http://puppetlabs.com/associate_response" associate-response-handler)
-                             :should-stop (promise)})
+                             :should-stop (promise)
+                             :user-data user-data})
         {:keys [websocket-connection]} client]
     (.start (Thread. (partial heartbeat client)))
     (reset! websocket-connection (future (make-connection client)))
