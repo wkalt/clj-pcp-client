@@ -6,14 +6,22 @@
 
 (defn make-test-client
   "A dummied up client object"
-  []
-  (map->Client {:server "wss://localhost:8142/pcp/v1"
-                :identity "pcp://the_identity/the_type"
-                :websocket-client ""
-                :websocket-connection (atom (future true))
-                :associate-response (atom (promise))
-                :handlers {}
-                :should-stop (promise)}))
+  ([user-data]
+   (map->Client {:server "wss://localhost:8142/pcp/v1"
+                 :identity "pcp://the_identity/the_type"
+                 :websocket-client ""
+                 :websocket-connection (atom (future true))
+                 :associate-response (atom (promise))
+                 :handlers {}
+                 :should-stop (promise)
+                 :user-data user-data}))
+  ([]
+   (make-test-client nil)))
+
+(deftest client-with-user-data-test
+  (let [client (make-test-client "foo")]
+    (testing "client includes the user data"
+      (is (= (:user-data client) "foo")))))
 
 (deftest state-checkers-test
   (let [client (make-test-client)]
