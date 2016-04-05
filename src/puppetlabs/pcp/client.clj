@@ -40,7 +40,12 @@
     pcp-broker.")
   (close [client]
     "Close the connection.  Once the client is close you will need a
-    new one."))
+    new one.")
+  (start-heartbeat-thread [client]
+    "Starts a thread that will periodically send WebSocket pings to the pcp-broker.
+    Propagates any unhandled exception thrown while attempting to connect.
+    Will raise ::not-connected if the client is not currently connected with the
+    pcp-broker."))
 
 (def Handlers
   "schema for handler map.  String keys are data_schema handlers,
@@ -52,7 +57,8 @@
 ;; ClientInterface
 (declare -connecting? -connected?
          -associating? -associated?
-         -wait-for-connection -wait-for-association -send! -close)
+         -wait-for-connection -wait-for-association -send! -close
+         -start-heartbeat-thread)
 
 (s/defrecord Client
   [server :- s/Str
@@ -72,7 +78,8 @@
   (wait-for-connection [client timeout] (-wait-for-connection client timeout))
   (wait-for-association [client timeout] (-wait-for-association client timeout))
   (send! [client message] (-send! client message))
-  (close [client] (-close client)))
+  (close [client] (-close client))
+  (start-heartbeat-thread [client] (-start-heartbeat-thread client)))
 
 (s/defn ^:always-validate ^:private -connecting? :- s/Bool
   [client :- Client]
@@ -135,12 +142,11 @@
     identity))
 
 (s/defn ^:always-validate ^:private heartbeat
-  "Starts the WebSocket heartbeat task that sends pings over the
+  "Provides the WebSocket heartbeat task that sends pings over the
   current set of connections as long as the 'should-stop' promise has
   not been delivered.  Will keep a connection alive, or detect a
   stalled connection earlier."
   [client :- Client]
-  (log/debug "WebSocket heartbeat task is about to start" client)
   (let [{:keys [should-stop websocket-client]} client]
     (while (not (deref should-stop 15000 false))
       (let [sessions (.getOpenSessions websocket-client)]
@@ -148,6 +154,18 @@
         (doseq [session sessions]
           (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
     (log/debug "WebSocket heartbeat task is about to finish")))
+
+(s/defn ^:always-validate ^:private -start-heartbeat-thread
+  "Ensures that the WebSocket connection is established and starts the WebSocket
+  heartbeat task.  Propagates any unhandled exception thrown while attempting
+  to connect. Rasises ::not-connected in case the connection was not established."
+  [client :- Client]
+  (log/trace "Ensuring that the WebSocket is connected")
+  (when-not (-connected? client)
+    (throw+ {:type ::not-connected}))
+  (log/debug "WebSocket heartbeat task is about to start" client)
+  (.start (Thread. (partial heartbeat client))))
+
 
 (s/defn ^:always-validate ^:private make-connection :- Object
   "Returns a connected websocket connection"
@@ -277,6 +295,5 @@
                              :should-stop (promise)
                              :user-data user-data})
         {:keys [websocket-connection]} client]
-    (.start (Thread. (partial heartbeat client)))
     (reset! websocket-connection (future (make-connection client)))
     client))
