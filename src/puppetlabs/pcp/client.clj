@@ -16,17 +16,19 @@
   (connecting? [client]
     "Returns true if the client is currently connecting to the pcp-broker")
   (connected? [client]
-    "Returns true if the client is currently connected to the pcp-broker")
+    "Returns true if the client is currently connected to the pcp-broker.
+    Propagates any unhandled exception thrown while attempting to connect.")
   (associating? [client]
     "Returns true if the client has not yet recieved an association response")
   (associated? [client]
     "Returns true if the client has been successfully assocated with a broker")
   (wait-for-connection [client timeout-ms]
     "Wait up to timeout-ms for a connection to be established.
-    Returns the client if the connection has been established, else nil")
+    Returns the client if the connection has been established, else nil.
+    Propagates any unhandled exception thrown while attempting to connect.")
   (wait-for-association [client timeout-ms]
     "Wait up to timeout-ms for a connection to be associated.  Returns the client if
-     the connection has been associated, else nil.
+    the connection has been associated, else nil.
 
      NOTE: There are two ways assocation may fail, we may not have
      recieved an association response in the timeout specified, or the
@@ -34,8 +36,8 @@
      associated? if you are interested in detecting the difference.")
   (send! [client message]
     "Send a message across the currently connected client.  Will
-    raise ::not-connected if the client is not currently connected to
-    a broker.")
+    raise ::not-connected if the client is not currently associated with the
+    pcp-broker.")
   (close [client]
     "Close the connection.  Once the client is close you will need a
     new one."))
