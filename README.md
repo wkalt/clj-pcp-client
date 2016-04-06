@@ -44,6 +44,9 @@ Releases of this project are distributed via clojars, to use it:
            {"example/cnc_request" cnc-request-handler
             :default default-request-handler}))
 
+;; ensuring that the underlying WebSocket connection persists with a heartbeat task
+(client/start-heartbeat-thread conn)
+
 ;; sending messages
 (client/send! conn
               (-> (message/make-message)
@@ -61,6 +64,7 @@ Releases of this project are distributed via clojars, to use it:
 ;; wait 5 seconds for things to resolve
 (Thread/sleep (* 5 1000))
 
+;; closing the connection and terminating the heartbeat task
 (client/close conn)
 ```
 
