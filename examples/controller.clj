@@ -51,9 +51,14 @@
 (defn start
   "Connect to the broker and send a request to the agent"
   []
-  (log/info "### connecting")
+  (log/info "### controller: connecting")
   (with-open [cl (client/connect controller-params controller-handlers)]
-       (log/info "### sending inventory request")
+       (client/wait-for-connection cl (* 10 1000))
+       (log/info "### controller: starting WebSocket heartbeat thread")
+       (client/start-heartbeat-thread cl)
+       (log/info "### controller: waiting for the WebSocket session being associated")
+       (client/wait-for-association cl (* 20 1000))
+       (log/info "### controller: sending inventory request")
        (client/send!
          cl
          (-> (message/make-message)
@@ -62,7 +67,7 @@
                     :message_type "http://puppetlabs.com/inventory_request")
              (message/set-json-data {:query ["pcp://*/agent"]})))
 
-       (log/info "### sending agent request")
+       (log/info "### controller: sending agent request")
        (client/send!
          cl
          (-> (message/make-message)
@@ -70,7 +75,7 @@
              (assoc :targets ["pcp://*/agent"]
                     :message_type "example/request")
              (message/set-json-data {:action "demo"})))
-       (log/info "### waiting for 60 s")
+       (log/info "### controller: waiting for 60 s")
        (Thread/sleep 60000)))
 
 (time (start))
