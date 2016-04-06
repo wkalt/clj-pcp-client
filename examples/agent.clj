@@ -65,7 +65,10 @@
   "Connect to the broker and wait for requests"
   []
   (log/info "### connecting")
+   ;; NB: with-open will ensure that the agent is properly closed
   (with-open [agent (client/connect agent-params agent-handlers)]
+       (client/wait-for-connection agent (* 60 1000))
+       (client/start-heartbeat-thread agent)
        (client/wait-for-association agent (* 60 1000))
        (log/info "### connected")
        (while (client/connected? agent)

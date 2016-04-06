@@ -21,7 +21,7 @@
   [conn request]
   (log/info "Default handler got message" request))
 
-;; connecting with handlers
+;; connecting with handlers and starting the WebSocket heartbeat thread
 (def conn (client/connect
             {:server      "wss://localhost:8142/pcp/"
              :cert        "test-resources/ssl/certs/client03.example.com.pem"
@@ -30,6 +30,14 @@
              :type        "demo_client"}
            {"example/cnc_request" cnc-request-handler
             :default default-request-handler}))
+
+(def timeout-ms (* 12 1000))
+
+(client/wait-for-connection conn timeout-ms)
+
+(client/start-heartbeat-thread conn)
+
+(client/wait-for-association conn timeout-ms)
 
 ;; sending messages
 
