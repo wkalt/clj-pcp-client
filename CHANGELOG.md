@@ -1,3 +1,16 @@
+## 0.3.0
+
+This is a bug fix release.  Changes to the Client interface have been made.
+
+* Updated the examples.
+* Made documentation improvements.
+* [PCP-357](https://tickets.puppetlabs.com/browse/PCP-357) Don't start the
+  WebSocket heartbeat thread before connecting; add a new function to the
+  puppetlabs.pcp.client/Client interface for starting the WebSocket heartbeat
+  synchronously.
+* [PCP-346](https://tickets.puppetlabs.com/browse/PCP-346) Add an optional
+  :user-data field to the puppetlabs.pcp.client/Client interface. 
+
 ## 0.2.2
 
 This is a security release.  It is the same as 0.2.1, but public.
