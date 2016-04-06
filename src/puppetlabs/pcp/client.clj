@@ -40,10 +40,15 @@
     pcp-broker.")
   (close [client]
     "Close the connection.  Once the client is close you will need a
-    new one.")
+    new one.
+
+     NOTE: you must invoke this function to properly close the connection,
+     otherwise reconnection attempts may happen and the heartbeat thread will
+     persist, in case it was previously started.")
   (start-heartbeat-thread [client]
-    "Starts a thread that will periodically send WebSocket pings to the pcp-broker.
-    Propagates any unhandled exception thrown while attempting to connect.
+    "Start a thread that will periodically send WebSocket pings to the pcp-broker.
+    The heartbeat thread will be stopped once the 'close' is invoked.
+    Propagate any unhandled exception thrown while attempting to connect.
     Will raise ::not-connected if the client is not currently connected with the
     pcp-broker."))
 
@@ -168,7 +173,9 @@
 
 
 (s/defn ^:always-validate ^:private make-connection :- Object
-  "Returns a connected websocket connection"
+  "Returns a connected WebSocket connection.  In case of a SSLHandShakeException
+  or ConnectException a further connection attempt will be made by following an
+  exponential backoff, whereas other exceptions will be propagated."
   [client :- Client]
   (let [{:keys [server websocket-client associate-response should-stop]} client
         initial-sleep 200
@@ -240,7 +247,10 @@
     true))
 
 (s/defn ^:always-validate -close :- s/Bool
-  "Close the connection"
+  "Close the connection.  Prevent any reconnection attempt 1) by the concurrent
+  'connect' task, in case it's still executing, (NB: the 'connect' function
+  operates asynchronously by invoking 'make-connection' in a separate thread)
+  or 2) by the :on-close event handler.  Stop the heartbeat thread."
   [client :- Client]
   (log/debug "Closing")
   (let [{:keys [should-stop websocket-client websocket-connection]} client]
