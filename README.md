@@ -68,7 +68,14 @@ Releases of this project are distributed via clojars, to use it:
 (client/close conn)
 ```
 
-## Support
+## Maintenance
 
-We use the [Puppet Communications Protocol project on JIRA](https://tickets.puppetlabs.com/browse/PCP)
-with the component `clj-pcp-client` for tickets on `puppetlabs/pcp-client`.
+Maintainers: Alessandro Parisi <alessandro@puppet.com>, Michael Smith
+<michael.smith@puppet.com>, Michal Ruzicka <michal.ruzicka@puppet.com>.
+
+Contributing: Please refer to [this][contributing] document.
+
+Tickets: File bug tickets at https://tickets.puppet.com/browse/PCP and add the
+`clj-pcp-client` component to the ticket.
+
+[contributing]: CONTRIBUTING.md
