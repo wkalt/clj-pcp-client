@@ -4,7 +4,8 @@
             [puppetlabs.pcp.message :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.ssl-utils.core :as ssl-utils]
-            [schema.core :as s])
+            [schema.core :as s]
+            [puppetlabs.i18n.core :as i18n])
   (:use [slingshot.slingshot :only [throw+ try+]])
   (:import  (clojure.lang Atom)
             (java.nio ByteBuffer)
@@ -120,13 +121,13 @@
         {:keys [success]} data
         {:keys [associate-response]} client]
     (s/validate p/AssociateResponse data)
-    (log/debug "Received associate_response message" message data)
+    (log/debug (i18n/trs "Received associate_response message {0} {1}" message data))
     (deliver @associate-response success)))
 
 (s/defn ^:always-validate ^:private fallback-handler
   "The handler to use when no handler matches"
   [client :- Client message :- Message]
-  (log/debug "no handler for " message))
+  (log/debug (i18n/trs "No handler for {0}" message)))
 
 (s/defn ^:always-validate ^:private dispatch-message
   [client :- Client message :- Message]
@@ -155,20 +156,20 @@
   (let [{:keys [should-stop websocket-client]} client]
     (while (not (deref should-stop 15000 false))
       (let [sessions (.getOpenSessions websocket-client)]
-        (log/debug "Sending WebSocket ping")
+        (log/debug (i18n/trs "Sending WebSocket ping"))
         (doseq [session sessions]
           (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
-    (log/debug "WebSocket heartbeat task is about to finish")))
+    (log/debug (i18n/trs "WebSocket heartbeat task is about to finish"))))
 
 (s/defn ^:always-validate ^:private -start-heartbeat-thread
   "Ensures that the WebSocket connection is established and starts the WebSocket
   heartbeat task.  Propagates any unhandled exception thrown while attempting
   to connect. Rasises ::not-connected in case the connection was not established."
   [client :- Client]
-  (log/trace "Ensuring that the WebSocket is connected")
+  (log/trace (i18n/trs "Ensuring that the WebSocket is connected"))
   (when-not (-connected? client)
     (throw+ {:type ::not-connected}))
-  (log/debug "WebSocket heartbeat task is about to start" client)
+  (log/debug (i18n/trs "WebSocket heartbeat task is about to start {0}" client))
   (.start (Thread. (partial heartbeat client))))
 
 
@@ -183,39 +184,41 @@
         maximum-sleep (* 15 1000)]
     (loop [retry-sleep initial-sleep]
       (or (try+
-            (log/debugf "Making connection to %s" server)
+            (log/debug (i18n/trs "Making connection to {0}" server))
             (ws/connect server
                         :client websocket-client
                         :on-connect (fn [session]
-                                      (log/debug "WebSocket connected")
+                                      (log/debug (i18n/trs "WebSocket connected"))
                                       (let [message (session-association-message client)
                                             buffer  (ByteBuffer/wrap (message/encode message))]
                                         (.. session (getRemote) (sendBytes buffer)))
-                                      (log/debug "sent associate session request"))
+                                      (log/debug (i18n/trs "Sent associate session request")))
                         :on-error (fn [error]
-                                    (log/error error "WebSocket error"))
+                                    (log/error error (i18n/trs "WebSocket error")))
                         :on-close (fn [code message]
-                                    (log/debug "WebSocket closed" code message)
+                                    (log/debug (i18n/trs "WebSocket closed {0} {1}" code message))
                                     (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       (when (not (realized? should-stop))
                                         (reset! websocket-connection (future (make-connection client))))))
                         :on-receive (fn [text]
-                                      (log/debug "received text message")
+                                      (log/debug (i18n/trs "Received text message"))
                                       (dispatch-message client (message/decode (message/string->bytes text))))
                         :on-binary (fn [buffer offset count]
                                      (let [message (message/decode buffer)]
-                                       (log/debug "received bin message - offset/bytes:" offset count
-                                                  "- message:" message)
+                                       (log/debug (i18n/trs "Received bin message - offset/bytes: {0}/{1} - message: {2}"
+                                                            offset count message))
                                        (dispatch-message client message))))
             (catch javax.net.ssl.SSLHandshakeException exception
-              (log/warnf exception "TLS Handshake failed.  Sleeping for up to %dms to retry" retry-sleep)
+              (log/warn exception (i18n/trs "TLS Handshake failed.  Sleeping for up to {0}ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
             (catch java.net.ConnectException exception
-              (log/debugf exception "Didn't get connected.  Sleeping for up to %dms to retry" retry-sleep)
+              ;; The following will produce "Didn't get connected.  ..."
+              ;; The apostrophe needs to be duplicated (enven in the translations).
+              (log/debug exception (i18n/trs "Didn''t get connected.  Sleeping for up to {0}ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
             (catch Object _
-              (log/error (:throwable &throw-context) "unexpected error")
+              (log/error (:throwable &throw-context) (i18n/trs "Unexpected error"))
               (throw+)))
           (recur (min maximum-sleep (* retry-sleep sleep-multiplier)))))))
 
@@ -252,7 +255,7 @@
   operates asynchronously by invoking 'make-connection' in a separate thread)
   or 2) by the :on-close event handler.  Stop the heartbeat thread."
   [client :- Client]
-  (log/debug "Closing")
+  (log/debug (i18n/trs "Closing"))
   (let [{:keys [should-stop websocket-client websocket-connection]} client]
     ;; NOTE:  This true value is also the sentinel for make-connection
     (deliver should-stop true)

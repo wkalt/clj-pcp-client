@@ -26,9 +26,12 @@
                  [stylefruits/gniazdo "0.4.0" :exclusions [org.eclipse.jetty.websocket/websocket-client]]
 
                  ;; try+/throw+
-                 [slingshot "0.12.2"]]
+                 [slingshot "0.12.2"]
 
-  :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]]
+                 [puppetlabs/i18n "0.3.0"]]
+
+  :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]
+            [puppetlabs/i18n "0.3.0"]]
 
   :lein-release {:scm :git
                  :deploy-via :lein-deploy}
