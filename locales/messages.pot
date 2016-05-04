@@ -1,0 +1,88 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Puppet <docs@puppet.com>
+# This file is distributed under the same license as the puppetlabs.pcp_client package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: puppetlabs.pcp_client \n"
+"Report-Msgid-Bugs-To: docs@puppet.com\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/puppetlabs/pcp/client.clj:124
+msgid "Received associate_response message {0} {1}"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:130
+msgid "No handler for {0}"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:159
+msgid "Sending WebSocket ping"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:162
+msgid "WebSocket heartbeat task is about to finish"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:169
+msgid "Ensuring that the WebSocket is connected"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:172
+msgid "WebSocket heartbeat task is about to start {0}"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:187
+msgid "Making connection to {0}"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:191
+msgid "WebSocket connected"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:195
+msgid "Sent associate session request"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:197
+msgid "WebSocket error"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:199
+msgid "WebSocket closed {0} {1}"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:205
+msgid "Received text message"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:209
+msgid "Received bin message - offset/bytes: {0}/{1} - message: {2}"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:213
+msgid "TLS Handshake failed.  Sleeping for up to {0}ms to retry"
+msgstr ""
+
+#. The following will produce "Didn't get connected.  ..."
+#. The apostrophe needs to be duplicated (enven in the translations).
+#: src/puppetlabs/pcp/client.clj:218
+msgid "Didn''t get connected.  Sleeping for up to {0}ms to retry"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:221
+msgid "Unexpected error"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj:258
+msgid "Closing"
+msgstr ""

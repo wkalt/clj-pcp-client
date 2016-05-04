@@ -13,4 +13,4 @@ pom.xml.asc
 /.idea
 *.iml
 /test-resources/tmp/
-/dev-resources/
+/resources/locales.clj
