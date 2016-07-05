@@ -196,7 +196,8 @@
                         :on-error (fn [error]
                                     (log/error error (i18n/trs "WebSocket error")))
                         :on-close (fn [code message]
-                                    (log/debug (i18n/trs "WebSocket closed {0} {1}" code message))
+                                    ;; Format error code as a simple string (rather than localized).
+                                    (log/debug (i18n/trs "WebSocket closed {0} {1}" (str code) message))
                                     (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       (when (not (realized? should-stop))
@@ -271,7 +272,8 @@
    :cert s/Str
    :private-key s/Str
    :type s/Str
-   (s/optional-key :user-data) s/Any})
+   (s/optional-key :user-data) s/Any
+   (s/optional-key :max-message-size) s/Int})
 
 ;; private helpers for the ssl/websockets setup
 (s/defn ^:private make-ssl-context :- SslContextFactory
@@ -290,6 +292,8 @@
   "Returns a WebSocketClient with the correct SSL context"
   [params :- ConnectParams]
   (let [client (WebSocketClient. (make-ssl-context params))]
+    (if-let [max-message-size (:max-message-size params)]
+      (.setMaxBinaryMessageSize (.getPolicy client) max-message-size))
     (.start client)
     client))
 

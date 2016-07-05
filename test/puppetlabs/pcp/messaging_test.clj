@@ -173,3 +173,13 @@
       (is (= client (client/wait-for-association client (* 40 1000))))
       (is (= false (client/associating? client)))
       (is (= true (client/associated? client))))))
+
+(deftest connect-with-too-small-message-size
+  (with-app-with-config
+    app
+    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
+    broker-config
+    (with-open [client (connect-client-config (assoc (client-config "client01")
+                                                     :max-message-size 128)
+                                              (constantly true))]
+      (is (= nil (client/wait-for-association client 1000))))))
