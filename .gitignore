@@ -14,3 +14,6 @@ pom.xml.asc
 *.iml
 /test-resources/tmp/
 /resources/locales.clj
+
+# Stores local files used by developers
+/eng-resources
