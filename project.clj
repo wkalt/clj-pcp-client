@@ -19,7 +19,7 @@
                  [clj-time "0.10.0"]
 
                  [puppetlabs/ssl-utils "0.8.1"]
-                 [puppetlabs/pcp-common "0.5.0"]
+                 [puppetlabs/pcp-common "0.5.1"]
 
                  ;; Transitive dependencies on jetty for stylefuits/gniazdo
                  ;; to use a stable jetty release (gniazdo specifies 9.3.0M1)
