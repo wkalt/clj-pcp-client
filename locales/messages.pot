@@ -57,7 +57,7 @@ msgstr ""
 msgid "WebSocket error"
 msgstr ""
 
-#. Format error code as a simple string (rather than localized).
+#. Format error code as a string rather than a localized number, i.e. 1,234.
 #: src/puppetlabs/pcp/client.clj
 msgid "WebSocket closed {0} {1}"
 msgstr ""

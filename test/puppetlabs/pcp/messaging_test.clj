@@ -180,6 +180,14 @@
     [authorization-service broker-service jetty9-service webrouting-service metrics-service]
     broker-config
     (with-open [client (connect-client-config (assoc (client-config "client01")
-                                                     :max-message-size 128)
-                                              (constantly true))]
-      (is (= nil (client/wait-for-association client 1000))))))
+                                                       :max-message-size 128)
+                                                (constantly true))]
+      ; Stop the client immediately, but don't trigger on-close. This attempts to limit to only
+      ; one association attempt.
+      (deliver (:should-stop client) true)
+      (with-test-logging-debug
+        (let [connected (client/wait-for-connection client 4000)
+              associated (client/wait-for-association client 1000)]
+          (is connected)
+          (is (not associated))
+          (is (logged? #"WebSocket closed 1009 Binary message size \[289\] exceeds maximum size \[128\]" :debug)))))))
