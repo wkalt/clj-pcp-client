@@ -10,14 +10,16 @@
 (defn make-test-client
   "A dummied up client object"
   ([user-data]
-   (map->Client {:server "wss://localhost:8142/pcp/v1"
-                 :identity "pcp://the_identity/the_type"
-                 :websocket-client ""
-                 :websocket-connection (atom (future true))
-                 :associate-response (atom (promise))
-                 :handlers {}
-                 :should-stop (promise)
-                 :user-data user-data}))
+   (let [realized-future (future true)]
+     (deref realized-future)                                ; make sure the future is realized
+     (map->Client {:server "wss://localhost:8142/pcp/v1"
+                   :identity "pcp://the_identity/the_type"
+                   :websocket-client ""
+                   :websocket-connection (atom realized-future)
+                   :associate-response (atom (promise))
+                   :handlers {}
+                   :should-stop (promise)
+                   :user-data user-data})))
   ([]
    (make-test-client nil)))
 
