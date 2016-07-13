@@ -17,72 +17,72 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/puppetlabs/pcp/client.clj:124
+#: src/puppetlabs/pcp/client.clj
 msgid "Received associate_response message {0} {1}"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:130
+#: src/puppetlabs/pcp/client.clj
 msgid "No handler for {0}"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:159
+#: src/puppetlabs/pcp/client.clj
 msgid "Sending WebSocket ping"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:162
+#: src/puppetlabs/pcp/client.clj
 msgid "WebSocket heartbeat task is about to finish"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:169
+#: src/puppetlabs/pcp/client.clj
 msgid "Ensuring that the WebSocket is connected"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:172
+#: src/puppetlabs/pcp/client.clj
 msgid "WebSocket heartbeat task is about to start {0}"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:187
+#: src/puppetlabs/pcp/client.clj
 msgid "Making connection to {0}"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:191
+#: src/puppetlabs/pcp/client.clj
 msgid "WebSocket connected"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:195
+#: src/puppetlabs/pcp/client.clj
 msgid "Sent associate session request"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:197
+#: src/puppetlabs/pcp/client.clj
 msgid "WebSocket error"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:199
+#: src/puppetlabs/pcp/client.clj
 msgid "WebSocket closed {0} {1}"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:205
+#: src/puppetlabs/pcp/client.clj
 msgid "Received text message"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:209
+#: src/puppetlabs/pcp/client.clj
 msgid "Received bin message - offset/bytes: {0}/{1} - message: {2}"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:213
+#: src/puppetlabs/pcp/client.clj
 msgid "TLS Handshake failed.  Sleeping for up to {0}ms to retry"
 msgstr ""
 
 #. The following will produce "Didn't get connected.  ..."
 #. The apostrophe needs to be duplicated (enven in the translations).
-#: src/puppetlabs/pcp/client.clj:218
+#: src/puppetlabs/pcp/client.clj
 msgid "Didn''t get connected.  Sleeping for up to {0}ms to retry"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:221
+#: src/puppetlabs/pcp/client.clj
 msgid "Unexpected error"
 msgstr ""
 
-#: src/puppetlabs/pcp/client.clj:258
+#: src/puppetlabs/pcp/client.clj
 msgid "Closing"
 msgstr ""
