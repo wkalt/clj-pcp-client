@@ -1,3 +1,5 @@
+(def i18n-version "0.4.1")
+
 (defproject puppetlabs/pcp-client "0.3.1-SNAPSHOT"
   :description "client library for PCP"
   :url "https://github.com/puppetlabs/clj-pcp-client"
@@ -28,10 +30,10 @@
                  ;; try+/throw+
                  [slingshot "0.12.2"]
 
-                 [puppetlabs/i18n "0.3.0"]]
+                 [puppetlabs/i18n  ~i18n-version]]
 
   :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]
-            [puppetlabs/i18n "0.3.0"]]
+            [puppetlabs/i18n  ~i18n-version]]
 
   :lein-release {:scm :git
                  :deploy-via :lein-deploy}

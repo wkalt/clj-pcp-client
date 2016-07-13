@@ -87,27 +87,27 @@
   (close [client] (-close client))
   (start-heartbeat-thread [client] (-start-heartbeat-thread client)))
 
-(s/defn ^:always-validate ^:private -connecting? :- s/Bool
+(s/defn ^:private -connecting? :- s/Bool
   [client :- Client]
   (let [{:keys [websocket-connection]} client]
     (not (realized? @websocket-connection))))
 
-(s/defn ^:always-validate ^:private -connected? :- s/Bool
+(s/defn ^:private -connected? :- s/Bool
   [client :- Client]
   (let [{:keys [websocket-connection]} client]
     (and (realized? @websocket-connection) (not (= @@websocket-connection true)))))
 
-(s/defn ^:always-validate ^:private -associating? :- s/Bool
+(s/defn ^:private -associating? :- s/Bool
   [client :- Client]
   (let [{:keys [associate-response]} client]
     (not (realized? @associate-response))))
 
-(s/defn ^:always-validate ^:private -associated? :- s/Bool
+(s/defn ^:private -associated? :- s/Bool
   [client :- Client]
   (let [{:keys [associate-response]} client]
     (and (realized? @associate-response) @@associate-response)))
 
-(s/defn ^:always-validate ^:private session-association-message :- Message
+(s/defn ^:private session-association-message :- Message
   [client :- Client]
   (let [{:keys [identity]} client]
     (-> (message/make-message :message_type "http://puppetlabs.com/associate_request"
@@ -115,7 +115,7 @@
                               :targets ["pcp:///server"])
         (message/set-expiry 3 :seconds))))
 
-(s/defn ^:always-validate ^:private associate-response-handler
+(s/defn ^:private associate-response-handler
   [client :- Client message :- Message]
   (let [data (message/get-json-data message)
         {:keys [success]} data
@@ -124,12 +124,12 @@
     (log/debug (i18n/trs "Received associate_response message {0} {1}" message data))
     (deliver @associate-response success)))
 
-(s/defn ^:always-validate ^:private fallback-handler
+(s/defn ^:private fallback-handler
   "The handler to use when no handler matches"
   [client :- Client message :- Message]
   (log/debug (i18n/trs "No handler for {0}" message)))
 
-(s/defn ^:always-validate ^:private dispatch-message
+(s/defn ^:private dispatch-message
   [client :- Client message :- Message]
   (let [message-type (:message_type message)
         handlers (:handlers client)
@@ -138,7 +138,7 @@
                     fallback-handler)]
     (handler client message)))
 
-(s/defn ^:always-validate ^:private make-identity :- p/Uri
+(s/defn ^:private make-identity :- p/Uri
   "extracts the common name from the named certificate and forms a PCP
   Uri with it and the supplied type"
   [certificate type]
@@ -147,7 +147,7 @@
         identity (format "pcp://%s/%s" cn type)]
     identity))
 
-(s/defn ^:always-validate ^:private heartbeat
+(s/defn ^:private heartbeat
   "Provides the WebSocket heartbeat task that sends pings over the
   current set of connections as long as the 'should-stop' promise has
   not been delivered.  Will keep a connection alive, or detect a
@@ -161,7 +161,7 @@
           (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
     (log/debug (i18n/trs "WebSocket heartbeat task is about to finish"))))
 
-(s/defn ^:always-validate ^:private -start-heartbeat-thread
+(s/defn ^:private -start-heartbeat-thread
   "Ensures that the WebSocket connection is established and starts the WebSocket
   heartbeat task.  Propagates any unhandled exception thrown while attempting
   to connect. Rasises ::not-connected in case the connection was not established."
@@ -173,7 +173,7 @@
   (.start (Thread. (partial heartbeat client))))
 
 
-(s/defn ^:always-validate ^:private make-connection :- Object
+(s/defn ^:private make-connection :- Object
   "Returns a connected WebSocket connection.  In case of a SSLHandShakeException
   or ConnectException a further connection attempt will be made by following an
   exponential backoff, whereas other exceptions will be propagated."
@@ -223,7 +223,7 @@
           (recur (min maximum-sleep (* retry-sleep sleep-multiplier)))))))
 
 
-(s/defn ^:always-validate -wait-for-connection :- (s/maybe Client)
+(s/defn -wait-for-connection :- (s/maybe Client)
   "Waits until a client is connected.  If timeout is hit, returns falsey"
   [client :- Client timeout :- s/Num]
   (let [{:keys [websocket-connection]} client]
@@ -231,7 +231,7 @@
       client
       nil)))
 
-(s/defn ^:always-validate -wait-for-association :- (s/maybe Client)
+(s/defn -wait-for-association :- (s/maybe Client)
   "Waits until a client is associated.  If timeout is hit, or the association doesn't work, returns falsey"
   [client :- Client timeout :- s/Num]
   (let [{:keys [associate-response]} client]
@@ -239,7 +239,7 @@
       client
       nil)))
 
-(s/defn ^:always-validate ^:private -send! :- s/Bool
+(s/defn ^:private -send! :- s/Bool
   "Send a message across the websocket session"
   [client :- Client message :- message/Message]
   (let [{:keys [identity websocket-connection]} client]
@@ -249,7 +249,7 @@
                    (message/encode (assoc message :sender identity))))
     true))
 
-(s/defn ^:always-validate -close :- s/Bool
+(s/defn -close :- s/Bool
   "Close the connection.  Prevent any reconnection attempt 1) by the concurrent
   'connect' task, in case it's still executing, (NB: the 'connect' function
   operates asynchronously by invoking 'make-connection' in a separate thread)
@@ -274,7 +274,7 @@
    (s/optional-key :user-data) s/Any})
 
 ;; private helpers for the ssl/websockets setup
-(s/defn ^:always-validate ^:private make-ssl-context :- SslContextFactory
+(s/defn ^:private make-ssl-context :- SslContextFactory
   "Returns an SslContextFactory that does client authentication based on the
   client certificate named"
   [params]
@@ -286,14 +286,14 @@
     (.setEndpointIdentificationAlgorithm factory "HTTPS")
     factory))
 
-(s/defn ^:always-validate ^:private make-websocket-client :- WebSocketClient
+(s/defn ^:private make-websocket-client :- WebSocketClient
   "Returns a WebSocketClient with the correct SSL context"
   [params :- ConnectParams]
   (let [client (WebSocketClient. (make-ssl-context params))]
     (.start client)
     client))
 
-(s/defn ^:always-validate connect :- Client
+(s/defn connect :- Client
   "Asyncronously establishes a connection to a pcp-broker named by
   `:server`.  Returns a Client"
   [params :- ConnectParams handlers :- Handlers]

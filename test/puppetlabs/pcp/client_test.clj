@@ -2,7 +2,10 @@
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.client :refer :all :as client]
             [puppetlabs.pcp.message :as message]
-            [slingshot.test]))
+            [slingshot.test]
+            [schema.test :as st]))
+
+(use-fixtures :once st/validate-schemas)
 
 (defn make-test-client
   "A dummied up client object"
