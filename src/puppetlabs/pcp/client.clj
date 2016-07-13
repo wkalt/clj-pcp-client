@@ -196,7 +196,7 @@
                         :on-error (fn [error]
                                     (log/error error (i18n/trs "WebSocket error")))
                         :on-close (fn [code message]
-                                    ;; Format error code as a simple string (rather than localized).
+                                    ;; Format error code as a string rather than a localized number, i.e. 1,234.
                                     (log/debug (i18n/trs "WebSocket closed {0} {1}" (str code) message))
                                     (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
