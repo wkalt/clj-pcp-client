@@ -1,3 +1,17 @@
+## 0.3.1
+
+This is a bug fix release.
+
+* [PCP-370](https://tickets.puppetlabs.com/browse/PCP-370) Removed unused SSL
+  certificates.
+* [PCP-368](https://tickets.puppetlabs.com/browse/PCP-368) Add string
+  externalization using puppetlabs/i18n library.
+* [PCP-488](https://tickets.puppetlabs.com/browse/PCP-488) Disable schema
+  validations by default.
+* Update dependencies to (puppetlabs/pcp-common 0.5.1).
+* [PCP-480](https://tickets.puppetlabs.com/browse/PCP-480) Make max binary
+  message size configurable.
+
 ## 0.3.0
 
 This is a bug fix release.  Changes to the Client interface have been made.
