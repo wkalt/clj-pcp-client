@@ -6,6 +6,7 @@
             [puppetlabs.pcp.message :as message]
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
+            [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
@@ -32,8 +33,11 @@
                :ssl-ca-cert  "./test-resources/ssl/ca/ca_crt.pem"
                :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
 
-   :web-router-service {:puppetlabs.pcp.broker.service/broker-service {:websocket "/pcp"
-                                                                       :metrics "/"}}
+   :web-router-service
+   {:puppetlabs.pcp.broker.service/broker-service {:v1 "/pcp"
+                                                   :vNext "/pcp/vNext"
+                                                   :metrics "/"}
+    :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
    :metrics {:enabled true
              :server-id "localhost"}
@@ -70,7 +74,7 @@
   (connect-client-config (client-config cn) handler-fn))
 
 (def broker-services
-  [authorization-service broker-service jetty9-service webrouting-service metrics-service])
+  [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service])
 
 (deftest send-message-and-assert-received-unchanged-test
   (testing "binary payloads"
@@ -101,8 +105,10 @@
   (with-open [client (connect-client "client01" (constantly true))]
     (is (not (client/connected? client)) "Should not be connected yet")
     (with-app-with-config app broker-services broker-config
-      (client/wait-for-connection client (* 40 1000))
+      (is (client/wait-for-connection client (* 40 1000)))
       (is (client/connected? client) "Should now be connected"))
+    ;; wait the retry-sleep period before checking for disconnect
+    (Thread/sleep 200)
     (is (not (client/connected? client)) "Should be disconnected")))
 
 (deftest connect-to-a-broker-with-the-wrong-name-test
@@ -144,11 +150,13 @@
   (with-open [client (connect-client "client01" (constantly true))]
     (is (not (client/connected? client)) "Should not be connected yet")
     (with-app-with-config app broker-services broker-config
-      (client/wait-for-connection client (* 40 1000))
+      (is (client/wait-for-connection client (* 40 1000)))
       (is (client/connected? client) "Should now be connected"))
+    ;; wait the retry-sleep period before checking for disconnect
+    (Thread/sleep 200)
     (is (not (client/connected? client)) "Should be disconnected")
     (with-app-with-config app broker-services broker-config
-      (client/wait-for-connection client (* 40 1000))
+      (is (client/wait-for-connection client (* 40 1000)))
       (is (client/connected? client) "Should be reconnected"))))
 
 (deftest association-checkers-test

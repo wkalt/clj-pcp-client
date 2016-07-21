@@ -63,6 +63,10 @@ msgid "WebSocket closed {0} {1}"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
+msgid "Sleeping for up to {0} ms to retry"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj
 msgid "Received text message"
 msgstr ""
 
@@ -71,13 +75,13 @@ msgid "Received bin message - offset/bytes: {0}/{1} - message: {2}"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
-msgid "TLS Handshake failed.  Sleeping for up to {0}ms to retry"
+msgid "TLS Handshake failed.  Sleeping for up to {0} ms to retry"
 msgstr ""
 
 #. The following will produce "Didn't get connected.  ..."
-#. The apostrophe needs to be duplicated (enven in the translations).
+#. The apostrophe needs to be duplicated (even in the translations).
 #: src/puppetlabs/pcp/client.clj
-msgid "Didn''t get connected.  Sleeping for up to {0}ms to retry"
+msgid "Didn''t get connected.  Sleeping for up to {0} ms to retry"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj

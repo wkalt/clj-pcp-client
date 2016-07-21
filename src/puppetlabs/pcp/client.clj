@@ -200,7 +200,8 @@
                                     (log/debug (i18n/trs "WebSocket closed {0} {1}" (str code) message))
                                     (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
-                                      (when (not (realized? should-stop))
+                                      (when (not (deref should-stop retry-sleep nil))
+                                        (log/debug (i18n/trs "Sleeping for up to {0} ms to retry" retry-sleep))
                                         (reset! websocket-connection (future (make-connection client))))))
                         :on-receive (fn [text]
                                       (log/debug (i18n/trs "Received text message"))
@@ -211,12 +212,12 @@
                                                             offset count message))
                                        (dispatch-message client message))))
             (catch javax.net.ssl.SSLHandshakeException exception
-              (log/warn exception (i18n/trs "TLS Handshake failed.  Sleeping for up to {0}ms to retry" retry-sleep))
+              (log/warn exception (i18n/trs "TLS Handshake failed.  Sleeping for up to {0} ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
             (catch java.net.ConnectException exception
               ;; The following will produce "Didn't get connected.  ..."
-              ;; The apostrophe needs to be duplicated (enven in the translations).
-              (log/debug exception (i18n/trs "Didn''t get connected.  Sleeping for up to {0}ms to retry" retry-sleep))
+              ;; The apostrophe needs to be duplicated (even in the translations).
+              (log/debug exception (i18n/trs "Didn''t get connected.  Sleeping for up to {0} ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
             (catch Object _
               (log/error (:throwable &throw-context) (i18n/trs "Unexpected error"))

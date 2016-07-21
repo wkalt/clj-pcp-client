@@ -1,3 +1,5 @@
+(def tk-version "1.4.0")
+(def ks-version "1.3.0")
 (def i18n-version "0.4.1")
 
 (defproject puppetlabs/pcp-client "0.3.2-SNAPSHOT"
@@ -10,7 +12,6 @@
 
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.logging "0.3.1"]
-                 [prismatic/schema "0.4.3"]
 
                  ;; Transitive dependency for:
                  ;;  - puppetlabs/ssl-utils
@@ -19,7 +20,9 @@
                  [clj-time "0.10.0"]
 
                  [puppetlabs/ssl-utils "0.8.1"]
-                 [puppetlabs/pcp-common "0.5.1"]
+                 [puppetlabs/pcp-common "0.5.1" :exclusions [puppetlabs/kitchensink prismatic/schema]]
+                 [puppetlabs/kitchensink "1.3.0"]
+                 [prismatic/schema "1.0.4"]
 
                  ;; Transitive dependencies on jetty for stylefuits/gniazdo
                  ;; to use a stable jetty release (gniazdo specifies 9.3.0M1)
@@ -45,10 +48,10 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.5.0"]
-                                  [puppetlabs/trapperkeeper "1.1.2"]
-                                  [puppetlabs/trapperkeeper "1.1.2" :classifier "test" :scope "test"]
-                                  [puppetlabs/kitchensink "1.1.0" :classifier "test" :scope "test"]]}
+  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.7.1"]
+                                  [puppetlabs/trapperkeeper ~tk-version]
+                                  [puppetlabs/trapperkeeper ~tk-version :classifier "test" :scope "test"]
+                                  [puppetlabs/kitchensink ~ks-version :classifier "test" :scope "test"]]}
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
                                 [lein-parent "0.2.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
