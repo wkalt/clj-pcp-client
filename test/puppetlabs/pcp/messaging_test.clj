@@ -10,7 +10,7 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
-             :refer [with-test-logging with-test-logging-debug]]
+             :refer [with-log-level with-test-logging with-test-logging-debug]]
             [slingshot.test]
             [schema.test :as st]))
 
@@ -185,9 +185,10 @@
       ; Stop the client immediately, but don't trigger on-close. This attempts to limit to only
       ; one association attempt.
       (deliver (:should-stop client) true)
-      (with-test-logging-debug
-        (let [connected (client/wait-for-connection client 4000)
-              associated (client/wait-for-association client 1000)]
-          (is connected)
-          (is (not associated))
-          (is (logged? #"WebSocket closed 1009 Binary message size \[289\] exceeds maximum size \[128\]" :debug)))))))
+      (with-log-level "puppetlabs.pcp.client" :debug
+        (with-test-logging
+          (let [connected (client/wait-for-connection client 4000)
+                associated (client/wait-for-association client 1000)]
+            (is connected)
+            (is (not associated))
+            (is (logged? #"WebSocket closed 1009 Binary message size \[289\] exceeds maximum size \[128\]" :debug))))))))
