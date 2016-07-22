@@ -6,11 +6,12 @@
             [puppetlabs.pcp.message :as message]
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
+            [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
-             :refer [with-test-logging with-test-logging-debug]]
+             :refer [with-log-level with-test-logging with-test-logging-debug]]
             [slingshot.test]
             [schema.test :as st]))
 
@@ -32,8 +33,11 @@
                :ssl-ca-cert  "./test-resources/ssl/ca/ca_crt.pem"
                :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
 
-   :web-router-service {:puppetlabs.pcp.broker.service/broker-service {:websocket "/pcp"
-                                                                       :metrics "/"}}
+   :web-router-service
+   {:puppetlabs.pcp.broker.service/broker-service {:v1 "/pcp"
+                                                   :vNext "/pcp/vNext"
+                                                   :metrics "/"}
+    :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
    :metrics {:enabled true
              :server-id "localhost"}
@@ -69,12 +73,12 @@
   [cn handler-fn]
   (connect-client-config (client-config cn) handler-fn))
 
+(def broker-services
+  [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service])
+
 (deftest send-message-and-assert-received-unchanged-test
   (testing "binary payloads"
-    (with-app-with-config
-      app
-      [authorization-service broker-service jetty9-service webrouting-service metrics-service]
-      broker-config
+    (with-app-with-config app broker-services broker-config
       (let [expected-data "Hello World!Ѱ$£%^\"\t\r\n(*)"
             message       (-> (message/make-message)
                               (message/set-expiry 3 :seconds)
@@ -100,18 +104,15 @@
 (deftest connect-to-a-down-broker-test
   (with-open [client (connect-client "client01" (constantly true))]
     (is (not (client/connected? client)) "Should not be connected yet")
-    (with-app-with-config
-      app
-      [authorization-service broker-service jetty9-service webrouting-service metrics-service]
-      broker-config
-      (client/wait-for-connection client (* 40 1000))
+    (with-app-with-config app broker-services broker-config
+      (is (client/wait-for-connection client (* 40 1000)))
       (is (client/connected? client) "Should now be connected"))
+    ;; wait the retry-sleep period before checking for disconnect
+    (Thread/sleep 200)
     (is (not (client/connected? client)) "Should be disconnected")))
 
 (deftest connect-to-a-broker-with-the-wrong-name-test
-  (with-app-with-config
-    app
-    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
+  (with-app-with-config app broker-services
     (update-in broker-config [:webserver] merge
                {:ssl-key "./test-resources/ssl/private_keys/client01.example.com.pem"
                 :ssl-cert "./test-resources/ssl/certs/client01.example.com.pem"})
@@ -131,9 +132,7 @@
            ["ssl-alt" "ssl-alt" false] ;; mutual rejection
            ]]
     (testing (str "broker-ca: " broker-ca " client-ca: " client-ca)
-      (with-app-with-config
-        app
-        [authorization-service broker-service jetty9-service webrouting-service metrics-service]
+      (with-app-with-config app broker-services
         (assoc-in broker-config [:webserver :ssl-ca-cert]
                   (str "./test-resources/" broker-ca "/ca/ca_crt.pem"))
         (with-open [client (connect-client-config (assoc (client-config "client01")
@@ -150,44 +149,35 @@
 (deftest connect-to-a-down-up-down-up-broker-test
   (with-open [client (connect-client "client01" (constantly true))]
     (is (not (client/connected? client)) "Should not be connected yet")
-    (with-app-with-config
-      app
-      [authorization-service broker-service jetty9-service webrouting-service metrics-service]
-      broker-config
-      (client/wait-for-connection client (* 40 1000))
+    (with-app-with-config app broker-services broker-config
+      (is (client/wait-for-connection client (* 40 1000)))
       (is (client/connected? client) "Should now be connected"))
+    ;; wait the retry-sleep period before checking for disconnect
+    (Thread/sleep 200)
     (is (not (client/connected? client)) "Should be disconnected")
-    (with-app-with-config
-      app
-      [authorization-service broker-service jetty9-service webrouting-service metrics-service]
-      broker-config
-      (client/wait-for-connection client (* 40 1000))
+    (with-app-with-config app broker-services broker-config
+      (is (client/wait-for-connection client (* 40 1000)))
       (is (client/connected? client) "Should be reconnected"))))
 
 (deftest association-checkers-test
-  (with-app-with-config
-    app
-    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
-    broker-config
+  (with-app-with-config app broker-services broker-config
     (with-open [client (connect-client "client01" (constantly true))]
       (is (= client (client/wait-for-association client (* 40 1000))))
       (is (= false (client/associating? client)))
       (is (= true (client/associated? client))))))
 
 (deftest connect-with-too-small-message-size
-  (with-app-with-config
-    app
-    [authorization-service broker-service jetty9-service webrouting-service metrics-service]
-    broker-config
+  (with-app-with-config app broker-services broker-config
     (with-open [client (connect-client-config (assoc (client-config "client01")
                                                        :max-message-size 128)
                                                 (constantly true))]
       ; Stop the client immediately, but don't trigger on-close. This attempts to limit to only
       ; one association attempt.
       (deliver (:should-stop client) true)
-      (with-test-logging-debug
-        (let [connected (client/wait-for-connection client 4000)
-              associated (client/wait-for-association client 1000)]
-          (is connected)
-          (is (not associated))
-          (is (logged? #"WebSocket closed 1009 Binary message size \[289\] exceeds maximum size \[128\]" :debug)))))))
+      (with-log-level "puppetlabs.pcp.client" :debug
+        (with-test-logging
+          (let [connected (client/wait-for-connection client 4000)
+                associated (client/wait-for-association client 1000)]
+            (is connected)
+            (is (not associated))
+            (is (logged? #"WebSocket closed 1009 Binary message size \[289\] exceeds maximum size \[128\]" :debug))))))))

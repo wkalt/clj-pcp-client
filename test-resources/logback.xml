@@ -11,6 +11,6 @@
 
     <logger name="log4j.logger.org.eclipse.jetty.server" level="warn"/>
     <logger name="log4j.logger.org.eclipse.jetty.util.log" level="warn"/>
-    <logger name="puppetlabs.pcp.client" level="debug"/>
+    <logger name="puppetlabs.pcp.client" level="info"/>
     <logger name="puppetlabs.pcp.broker" level="info"/>
 </configuration>
