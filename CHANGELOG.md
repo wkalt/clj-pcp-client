@@ -1,3 +1,11 @@
+## 0.3.2
+
+This is a bug fix release.
+
+* [PCP-518](https://tickets.puppetlabs.com/browse/PCP-518) clj-pcp-client now
+  includes a small delay between attempting to reconnect when disconnected
+  while broker is starting up or shutting down.
+
 ## 0.3.1
 
 This is a bug fix release.
@@ -111,7 +119,8 @@ This is a maintenance release
 This is a feature and maintenance release
 
 * Update puppetlabs/cthun-message dependency from 0.0.1 to 0.1.0
-* [CTH-212](https://tickets.puppetlabs.com/browse/CTH-212) Renames and rework for updates to protocol specificatons.
+* [CTH-212](https://tickets.puppetlabs.com/browse/CTH-212) Renames and rework
+  for updates to protocol specificatons.
 
 ## 0.0.1
 
