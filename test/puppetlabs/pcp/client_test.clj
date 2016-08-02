@@ -80,8 +80,16 @@
 
 (def make-identity #'puppetlabs.pcp.client/make-identity)
 (deftest make-identity-test
-  (is (= "pcp://client01.example.com/test"
-         (make-identity "test-resources/ssl/certs/client01.example.com.pem" "test"))))
+  (testing "It returns the correct identity"
+    (is (= "pcp://client01.example.com/test"
+           (make-identity "test-resources/ssl/certs/client01.example.com.pem" "test"))))
+  (testing "It returns the correct identity from a certificate chain"
+    (is (= "pcp://client01.example.com/test"
+           (make-identity "test-resources/ssl/certs/client01-chain.example.com.pem" "test"))))
+  (testing "It throws an exception when the certificate file is empty"
+    (is (thrown-with-msg? IllegalArgumentException
+                          #"test-resources/ssl/certs/client01-empty\.example\.com.pem must contain at least 1 certificate"
+                          (make-identity "test-resources/ssl/certs/client01-empty.example.com.pem" "test")))))
 
 (def make-connection #'puppetlabs.pcp.client/make-connection)
 (deftest make-connection-test

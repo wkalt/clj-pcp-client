@@ -28,19 +28,19 @@
     Returns the client if the connection has been established, else nil.
     Propagates any unhandled exception thrown while attempting to connect.")
   (wait-for-association [client timeout-ms]
-    "Wait up to timeout-ms for a connection to be associated.  Returns the client if
+    "Wait up to timeout-ms for a connection to be associated. Returns the client if
     the connection has been associated, else nil.
 
      NOTE: There are two ways assocation may fail, we may not have
      recieved an association response in the timeout specified, or the
-     association request may have been denied.  Check associating? and
+     association request may have been denied. Check associating? and
      associated? if you are interested in detecting the difference.")
   (send! [client message]
-    "Send a message across the currently connected client.  Will
+    "Send a message across the currently connected client. Will
     raise ::not-connected if the client is not currently associated with the
     pcp-broker.")
   (close [client]
-    "Close the connection.  Once the client is close you will need a
+    "Close the connection. Once the client is close you will need a
     new one.
 
      NOTE: you must invoke this function to properly close the connection,
@@ -54,11 +54,11 @@
     pcp-broker."))
 
 (def Handlers
-  "schema for handler map.  String keys are data_schema handlers,
+  "schema for handler map. String keys are data_schema handlers,
   keyword keys are special handlers (like :default)"
   {(s/either s/Str s/Keyword) (s/pred fn?)})
 
-;; forward declare implementations of protocol functions.  We prefix
+;; forward declare implementations of protocol functions. We prefix
 ;; with the dash so they're not clashing with the versions defined by
 ;; ClientInterface
 (declare -connecting? -connected?
@@ -142,15 +142,18 @@
   "extracts the common name from the named certificate and forms a PCP
   Uri with it and the supplied type"
   [certificate type]
-  (let [x509     (ssl-utils/pem->cert certificate)
-        cn       (ssl-utils/get-cn-from-x509-certificate x509)
-        identity (format "pcp://%s/%s" cn type)]
-    identity))
+  (let [x509-chain (ssl-utils/pem->certs certificate)]
+    (when (empty? x509-chain)
+      (throw (IllegalArgumentException.
+               (i18n/trs "{0} must contain at least 1 certificate" certificate))))
+    (let [cn       (ssl-utils/get-cn-from-x509-certificate (first x509-chain))
+          identity (format "pcp://%s/%s" cn type)]
+      identity)))
 
 (s/defn ^:private heartbeat
   "Provides the WebSocket heartbeat task that sends pings over the
   current set of connections as long as the 'should-stop' promise has
-  not been delivered.  Will keep a connection alive, or detect a
+  not been delivered. Will keep a connection alive, or detect a
   stalled connection earlier."
   [client :- Client]
   (let [{:keys [should-stop websocket-client]} client]
@@ -163,7 +166,7 @@
 
 (s/defn ^:private -start-heartbeat-thread
   "Ensures that the WebSocket connection is established and starts the WebSocket
-  heartbeat task.  Propagates any unhandled exception thrown while attempting
+  heartbeat task. Propagates any unhandled exception thrown while attempting
   to connect. Rasises ::not-connected in case the connection was not established."
   [client :- Client]
   (log/trace (i18n/trs "Ensuring that the WebSocket is connected"))
@@ -174,7 +177,7 @@
 
 
 (s/defn ^:private make-connection :- Object
-  "Returns a connected WebSocket connection.  In case of a SSLHandShakeException
+  "Returns a connected WebSocket connection. In case of a SSLHandShakeException
   or ConnectException a further connection attempt will be made by following an
   exponential backoff, whereas other exceptions will be propagated."
   [client :- Client]
@@ -212,12 +215,12 @@
                                                             offset count message))
                                        (dispatch-message client message))))
             (catch javax.net.ssl.SSLHandshakeException exception
-              (log/warn exception (i18n/trs "TLS Handshake failed.  Sleeping for up to {0} ms to retry" retry-sleep))
+              (log/warn exception (i18n/trs "TLS Handshake failed. Sleeping for up to {0} ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
             (catch java.net.ConnectException exception
-              ;; The following will produce "Didn't get connected.  ..."
+              ;; The following will produce "Didn't get connected. ..."
               ;; The apostrophe needs to be duplicated (even in the translations).
-              (log/debug exception (i18n/trs "Didn''t get connected.  Sleeping for up to {0} ms to retry" retry-sleep))
+              (log/debug exception (i18n/trs "Didn''t get connected. Sleeping for up to {0} ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
             (catch Object _
               (log/error (:throwable &throw-context) (i18n/trs "Unexpected error"))
@@ -226,7 +229,7 @@
 
 
 (s/defn -wait-for-connection :- (s/maybe Client)
-  "Waits until a client is connected.  If timeout is hit, returns falsey"
+  "Waits until a client is connected. If timeout is hit, returns falsey"
   [client :- Client timeout :- s/Num]
   (let [{:keys [websocket-connection]} client]
     (if (deref @websocket-connection timeout nil)
@@ -234,7 +237,7 @@
       nil)))
 
 (s/defn -wait-for-association :- (s/maybe Client)
-  "Waits until a client is associated.  If timeout is hit, or the association doesn't work, returns falsey"
+  "Waits until a client is associated. If timeout is hit, or the association doesn't work, returns falsey"
   [client :- Client timeout :- s/Num]
   (let [{:keys [associate-response]} client]
     (if (deref @associate-response timeout nil)
@@ -252,10 +255,10 @@
     true))
 
 (s/defn -close :- s/Bool
-  "Close the connection.  Prevent any reconnection attempt 1) by the concurrent
+  "Close the connection. Prevent any reconnection attempt 1) by the concurrent
   'connect' task, in case it's still executing, (NB: the 'connect' function
   operates asynchronously by invoking 'make-connection' in a separate thread)
-  or 2) by the :on-close event handler.  Stop the heartbeat thread."
+  or 2) by the :on-close event handler. Stop the heartbeat thread."
   [client :- Client]
   (log/debug (i18n/trs "Closing"))
   (let [{:keys [should-stop websocket-client websocket-connection]} client]
@@ -300,7 +303,10 @@
 
 (s/defn connect :- Client
   "Asyncronously establishes a connection to a pcp-broker named by
-  `:server`.  Returns a Client"
+  `:server`. Returns a Client.
+
+   The certificate file specified can provide either a single certificate,
+   or a certificate chain (with the first entry being the client's certificate)."
   [params :- ConnectParams handlers :- Handlers]
   (let [{:keys [cert type server user-data]} params
         client (map->Client {:server server
