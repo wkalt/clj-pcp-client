@@ -203,9 +203,12 @@
                                     (log/debug (i18n/trs "WebSocket closed {0} {1}" (str code) message))
                                     (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
-                                      (when (not (deref should-stop retry-sleep nil))
-                                        (log/debug (i18n/trs "Sleeping for up to {0} ms to retry" retry-sleep))
-                                        (reset! websocket-connection (future (make-connection client))))))
+                                      ;; Ensure disconnect state is immediately registered as connecting.
+                                      (reset! websocket-connection (future (Thread/sleep (* sleep-multiplier retry-sleep))))
+                                      (log/debug (i18n/trs "Sleeping for up to {0} ms to retry" retry-sleep))
+                                      (if-not (deref should-stop retry-sleep nil)
+                                        (reset! websocket-connection (future (make-connection client)))
+                                        (reset! websocket-connection (future true)))))
                         :on-receive (fn [text]
                                       (log/debug (i18n/trs "Received text message"))
                                       (dispatch-message client (message/decode (message/string->bytes text))))
@@ -226,7 +229,6 @@
               (log/error (:throwable &throw-context) (i18n/trs "Unexpected error"))
               (throw+)))
           (recur (min maximum-sleep (* retry-sleep sleep-multiplier)))))))
-
 
 (s/defn -wait-for-connection :- (s/maybe Client)
   "Waits until a client is connected. If timeout is hit, returns falsey"
