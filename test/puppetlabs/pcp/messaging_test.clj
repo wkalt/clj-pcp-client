@@ -46,8 +46,6 @@
                 :accept-consumers 2
                 :delivery-consumers 2}})
 
-(use-fixtures :once st/validate-schemas)
-
 (defn default-request-handler
   [conn request]
   (log/debug "Default handler got message" request))
