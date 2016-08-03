@@ -26,6 +26,10 @@ msgid "No handler for {0}"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
+msgid "{0} must contain at least 1 certificate"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj
 msgid "Sending WebSocket ping"
 msgstr ""
 
@@ -75,13 +79,13 @@ msgid "Received bin message - offset/bytes: {0}/{1} - message: {2}"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
-msgid "TLS Handshake failed.  Sleeping for up to {0} ms to retry"
+msgid "TLS Handshake failed. Sleeping for up to {0} ms to retry"
 msgstr ""
 
-#. The following will produce "Didn't get connected.  ..."
+#. The following will produce "Didn't get connected. ..."
 #. The apostrophe needs to be duplicated (even in the translations).
 #: src/puppetlabs/pcp/client.clj
-msgid "Didn''t get connected.  Sleeping for up to {0} ms to retry"
+msgid "Didn''t get connected. Sleeping for up to {0} ms to retry"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
