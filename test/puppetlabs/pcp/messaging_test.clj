@@ -46,8 +46,6 @@
                 :accept-consumers 2
                 :delivery-consumers 2}})
 
-(use-fixtures :once st/validate-schemas)
-
 (defn default-request-handler
   [conn request]
   (log/debug "Default handler got message" request))
@@ -105,10 +103,10 @@
   (with-open [client (connect-client "client01" (constantly true))]
     (is (not (client/connected? client)) "Should not be connected yet")
     (with-app-with-config app broker-services broker-config
-      (is (client/wait-for-connection client (* 40 1000)))
+      (client/wait-for-connection client (* 40 1000))
       (is (client/connected? client) "Should now be connected"))
-    ;; wait the retry-sleep period before checking for disconnect
-    (Thread/sleep 200)
+    ;; Allow time for the websocket connection to close, but not enough to attempt reconnecting
+    (Thread/sleep 1)
     (is (not (client/connected? client)) "Should be disconnected")))
 
 (deftest connect-to-a-broker-with-the-wrong-name-test
@@ -150,13 +148,13 @@
   (with-open [client (connect-client "client01" (constantly true))]
     (is (not (client/connected? client)) "Should not be connected yet")
     (with-app-with-config app broker-services broker-config
-      (is (client/wait-for-connection client (* 40 1000)))
+      (client/wait-for-connection client (* 40 1000))
       (is (client/connected? client) "Should now be connected"))
-    ;; wait the retry-sleep period before checking for disconnect
-    (Thread/sleep 200)
+    ;; Allow time for the websocket connection to close, but not enough to attempt reconnecting
+    (Thread/sleep 1)
     (is (not (client/connected? client)) "Should be disconnected")
     (with-app-with-config app broker-services broker-config
-      (is (client/wait-for-connection client (* 40 1000)))
+      (client/wait-for-connection client (* 40 1000))
       (is (client/connected? client) "Should be reconnected"))))
 
 (deftest association-checkers-test
