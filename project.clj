@@ -56,8 +56,7 @@
                                 [lein-parent "0.2.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
                                        :inherit [:cljfmt]}}
-             :test-base [
-                         :dev
+             :test-base [:dev
                          {:source-paths ["test-resources"]
                           :test-paths ^:replace ["test"]}]
              :test-schema-validation [:test-base
