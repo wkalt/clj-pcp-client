@@ -4,6 +4,8 @@ lein: lein2
 jdk:
   - oraclejdk7
   - openjdk7
-script: lein2 test
+script:
+  - lein2 test
+  - lein2 with-profile test-schema-validation test
 notifications:
   email: false

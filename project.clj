@@ -55,6 +55,14 @@
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
                                 [lein-parent "0.2.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
-                                       :inherit [:cljfmt]}}}
+                                       :inherit [:cljfmt]}}
+             :test-base [:dev
+                         {:source-paths ["test-resources"]
+                          :test-paths ^:replace ["test"]}]
+             :test-schema-validation [:test-base
+                                      {:injections [(do
+                                                      (require 'schema.core)
+                                                      (schema.core/set-fn-validation! true))]}]}
 
-  :aliases {"cljfmt" ["with-profile" "+cljfmt" "cljfmt"]})
+  :aliases {"cljfmt" ["with-profile" "+cljfmt" "cljfmt"]
+            "test-all" ["with-profile" "test-base:test-schema-validation" "test"]})
