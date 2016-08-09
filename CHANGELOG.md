@@ -1,3 +1,17 @@
+## 0.3.3
+
+This is a bug fix release.
+
+* [PCP-544](https://tickets.puppetlabs.com/browse/PCP-544) Make client
+operations more reliable by handling exceptions
+* [PCP-535](https://tickets.puppetlabs.com/browse/PCP-535) Add
+test-schema-validation profile and test-all task, don't test with schemas by
+default
+* [PCP-537](https://tickets.puppetlabs.com/browse/PCP-537) Report connecting
+or disconnected immediately on connection close
+* [PCP-530](https://tickets.puppetlabs.com/browse/PCP-530) Allow cert chains in
+client cert
+
 ## 0.3.2
 
 This is a bug fix release.
