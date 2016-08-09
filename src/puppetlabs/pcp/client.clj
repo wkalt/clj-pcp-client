@@ -37,8 +37,9 @@
      associated? if you are interested in detecting the difference.")
   (send! [client message]
     "Send a message across the currently connected client. Will
-    raise ::not-connected if the client is not currently associated with the
-    pcp-broker.")
+    raise ::not-associated if the client is not currently associated with the
+    pcp-broker, and ::not-connected if the client has become disconnected from
+    the pcp-broker.")
   (close [client]
     "Close the connection. Once the client is close you will need a
     new one.
@@ -95,7 +96,14 @@
 (s/defn ^:private -connected? :- s/Bool
   [client :- Client]
   (let [{:keys [websocket-connection]} client]
-    (and (realized? @websocket-connection) (not (= @@websocket-connection true)))))
+    ;; if deref returned an exception, we have no connection
+    ;; this happens occasionally if the broker is starting up or shutting down
+    ;; when we attempt to connect, or if the connection disappears abruptly
+    (try
+      (and (realized? @websocket-connection) (not (= @@websocket-connection true)))
+      (catch java.util.concurrent.ExecutionException exception
+        (log/debug exception (i18n/trs "exception while establishing a connection; not connected"))
+        false))))
 
 (s/defn ^:private -associating? :- s/Bool
   [client :- Client]
@@ -225,6 +233,9 @@
               ;; The apostrophe needs to be duplicated (even in the translations).
               (log/debug exception (i18n/trs "Didn''t get connected. Sleeping for up to {0} ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
+            (catch java.io.IOException exception
+              (log/debug exception (i18n/trs "Connection closed while establishing connection. Sleeping for up to {0} ms to reconnect" retry-sleep))
+              (deref should-stop retry-sleep nil))
             (catch Object _
               (log/error (:throwable &throw-context) (i18n/trs "Unexpected error"))
               (throw+)))
@@ -234,9 +245,13 @@
   "Waits until a client is connected. If timeout is hit, returns falsey"
   [client :- Client timeout :- s/Num]
   (let [{:keys [websocket-connection]} client]
-    (if (deref @websocket-connection timeout nil)
-      client
-      nil)))
+    (try
+      (if (deref @websocket-connection timeout nil)
+        client
+        nil)
+      (catch java.util.concurrent.ExecutionException exception
+        (log/debug exception (i18n/trs "exception while waiting for a connection; not connected"))
+        nil))))
 
 (s/defn -wait-for-association :- (s/maybe Client)
   "Waits until a client is associated. If timeout is hit, or the association doesn't work, returns falsey"
@@ -252,8 +267,12 @@
   (let [{:keys [identity websocket-connection]} client]
     (if-not (-associated? client)
       (throw+ {:type ::not-associated})
-      (ws/send-msg @@websocket-connection
-                   (message/encode (assoc message :sender identity))))
+      (try
+        (ws/send-msg @@websocket-connection
+                     (message/encode (assoc message :sender identity)))
+        (catch java.util.concurrent.ExecutionException exception
+          (log/debug exception (i18n/trs "exception on the connection while attempting to send a message"))
+          (throw+ {:type :not-connected}))))
     true))
 
 (s/defn -close :- s/Bool
@@ -267,7 +286,10 @@
     ;; NOTE:  This true value is also the sentinel for make-connection
     (deliver should-stop true)
     (if (-connected? client)
-      (ws/close @@websocket-connection))
+      (try
+        (ws/close @@websocket-connection)
+        (catch java.util.concurrent.ExecutionException exception
+          (log/debug exception (i18n/trs "exception while closing the connection; connection already closed")))))
     (.stop websocket-client))
   true)
 

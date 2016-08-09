@@ -18,6 +18,10 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: src/puppetlabs/pcp/client.clj
+msgid "exception while establishing a connection; not connected"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj
 msgid "Received associate_response message {0} {1}"
 msgstr ""
 
@@ -89,9 +93,27 @@ msgid "Didn''t get connected. Sleeping for up to {0} ms to retry"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
+msgid ""
+"Connection closed while establishing connection. Sleeping for up to {0} ms "
+"to reconnect"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj
 msgid "Unexpected error"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
+msgid "exception while waiting for a connection; not connected"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj
+msgid "exception on the connection while attempting to send a message"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj
 msgid "Closing"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj
+msgid "exception while closing the connection; connection already closed"
 msgstr ""
