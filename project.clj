@@ -2,7 +2,7 @@
 (def ks-version "1.3.0")
 (def i18n-version "0.4.1")
 
-(defproject puppetlabs/pcp-client "0.3.3"
+(defproject puppetlabs/pcp-client "0.3.4-SNAPSHOT"
   :description "client library for PCP"
   :url "https://github.com/puppetlabs/clj-pcp-client"
   :license {:name "Apache License, Version 2.0"
