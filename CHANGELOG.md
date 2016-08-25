@@ -1,3 +1,10 @@
+## 0.3.4
+
+This is a maintenance release.
+
+* Update (puppetlabs/i18n) to 0.4.3 and (puppetlabs/pcp-common) to 0.5.4 for a
+performance-related bug fix in the i18n library.
+
 ## 0.3.3
 
 This is a bug fix release.
