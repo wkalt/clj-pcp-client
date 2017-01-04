@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.client-test
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.client :refer :all :as client]
-            [puppetlabs.pcp.message :as message]
+            [puppetlabs.pcp.message-v2 :as message]
             [slingshot.test]
             [schema.test :as st]))
 
@@ -14,7 +14,6 @@
                    :identity "pcp://the_identity/the_type"
                    :websocket-client ""
                    :websocket-connection (atom realized-future)
-                   :associate-response (atom (promise))
                    :handlers {}
                    :should-stop (promise)
                    :user-data user-data})))
@@ -32,31 +31,6 @@
       (is (not (connected? client))))
     (testing "successfully returns negative"
       (is (not (connecting? client))))))
-
-(def session-association-message #'puppetlabs.pcp.client/session-association-message)
-(deftest session-association-message-test
-  (let [message (session-association-message (make-test-client))]
-    (testing "it yields a message"
-      (is (map? message)))
-    (testing "message with the correct type"
-      (is (= "http://puppetlabs.com/associate_request"
-             (:message_type message))))))
-
-(def associate-response-handler #'puppetlabs.pcp.client/associate-response-handler)
-(deftest associate-response-handler-test
-  (let [message (message/make-message)
-        message (message/set-json-data message {:success true :id (:id message)})
-        client (make-test-client)]
-    (testing "it delivers the promise"
-      (is (= true (client/associating? client)))
-      (is (= false (client/associated? client)))
-      (associate-response-handler client message)
-      (is (= false (client/associating? client)))
-      (is (= true (client/associated? client))))
-    (testing "it throws on bad message"
-      (let [bad-message (message/set-json-data message "badness")]
-        (is (thrown+? [:type :schema.core/error]
-                      (associate-response-handler client bad-message)))))))
 
 (def dispatch-message #'puppetlabs.pcp.client/dispatch-message)
 (deftest dispatch-message-test

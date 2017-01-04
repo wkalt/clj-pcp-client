@@ -22,10 +22,6 @@ msgid "exception while establishing a connection; not connected"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
-msgid "Received associate_response message {0} {1}"
-msgstr ""
-
-#: src/puppetlabs/pcp/client.clj
 msgid "No handler for {0}"
 msgstr ""
 
@@ -58,10 +54,6 @@ msgid "WebSocket connected"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
-msgid "Sent associate session request"
-msgstr ""
-
-#: src/puppetlabs/pcp/client.clj
 msgid "WebSocket error"
 msgstr ""
 
@@ -76,10 +68,6 @@ msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
 msgid "Received text message"
-msgstr ""
-
-#: src/puppetlabs/pcp/client.clj
-msgid "Received bin message - offset/bytes: {0}/{1} - message: {2}"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
@@ -104,6 +92,10 @@ msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
 msgid "exception while waiting for a connection; not connected"
+msgstr ""
+
+#: src/puppetlabs/pcp/client.clj
+msgid "refusing to send message on unconnected session"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
