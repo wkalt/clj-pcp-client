@@ -7,6 +7,7 @@
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
             [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
+            [puppetlabs.trapperkeeper.services.scheduler.scheduler-service :refer [scheduler-service]]
             [puppetlabs.trapperkeeper.services.webrouting.webrouting-service :refer [webrouting-service]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
@@ -72,7 +73,13 @@
   (connect-client-config (client-config cn) handler-fn))
 
 (def broker-services
-  [authorization-service broker-service jetty9-service webrouting-service metrics-service status-service])
+  [authorization-service
+   broker-service
+   jetty9-service
+   webrouting-service
+   metrics-service
+   status-service
+   scheduler-service])
 
 (deftest send-message-and-assert-received-unchanged-test
   (testing "binary payloads"
