@@ -1,11 +1,11 @@
 language: clojure
 sudo: false
-lein: lein2
+lein: 2.7.1
 jdk:
   - oraclejdk7
   - openjdk7
 script:
-  - lein2 test
-  - lein2 with-profile test-schema-validation test
+  - lein test
+  - lein with-profile test-schema-validation test
 notifications:
   email: false
