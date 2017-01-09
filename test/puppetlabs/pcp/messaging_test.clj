@@ -3,7 +3,7 @@
             [clojure.tools.logging :as log]
             [puppetlabs.pcp.broker.service :refer [broker-service]]
             [puppetlabs.pcp.client :as client]
-            [puppetlabs.pcp.message :as message]
+            [puppetlabs.pcp.message-v2 :as message]
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
             [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
@@ -12,7 +12,7 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer [jetty9-service]]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.testutils.logging
-             :refer [with-log-level with-test-logging with-test-logging-debug]]
+             :refer [with-log-level with-logging-to-atom with-log-suppressed-unless-notable]]
             [slingshot.test]
             [schema.test :as st]))
 
@@ -35,8 +35,8 @@
                :ssl-crl-path "./test-resources/ssl/ca/ca_crl.pem"}
 
    :web-router-service
-   {:puppetlabs.pcp.broker.service/broker-service {:v1 "/pcp"
-                                                   :vNext "/pcp/vNext"
+   {:puppetlabs.pcp.broker.service/broker-service {:v1 "/pcp1"
+                                                   :v2 "/pcp"
                                                    :metrics "/"}
     :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
@@ -57,8 +57,7 @@
   {:server      "wss://localhost:8143/pcp/"
    :cert        (format "test-resources/ssl/certs/%s.example.com.pem" cn)
    :private-key (format "test-resources/ssl/private_keys/%s.example.com.pem" cn)
-   :cacert      "test-resources/ssl/certs/ca.pem"
-   :type        "demo-client"})
+   :cacert      "test-resources/ssl/certs/ca.pem"})
 
 (defn connect-client-config
   "connect a client with a handler function"
@@ -72,6 +71,21 @@
   [cn handler-fn]
   (connect-client-config (client-config cn) handler-fn))
 
+(defmacro eventually-logged?
+  [logger-id level pred & body]
+  `(with-log-level ~logger-id ~level
+     (with-log-suppressed-unless-notable (constantly false)
+       (let [log# (atom [])]
+         (with-logging-to-atom ~logger-id log#
+           (do ~@body)
+           (loop [n# 15] ;; loop up to 15 times to see if predicate is satisfied
+             (let [log-text# (map (fn [x#] (.getMessage x#)) (deref log#))]
+               (cond
+                 (neg? n#) (is (some ~pred log-text#))
+                 (some ~pred log-text#) (is (some ~pred log-text#))
+                 :else (do (Thread/sleep 100)
+                           (recur (dec n#)))))))))))
+
 (def broker-services
   [authorization-service
    broker-service
@@ -81,30 +95,29 @@
    status-service
    scheduler-service])
 
-(deftest send-message-and-assert-received-unchanged-test
-  (testing "binary payloads"
-    (with-app-with-config app broker-services broker-config
-      (let [expected-data "Hello World!Ѱ$£%^\"\t\r\n(*)"
-            message       (-> (message/make-message)
-                              (message/set-expiry 3 :seconds)
-                              (message/set-data (byte-array (.getBytes expected-data "UTF-8")))
-                              (assoc :targets      ["pcp://client02.example.com/demo-client"]
-                                     :message_type "example/any_schema"))
-            received      (promise)]
-        (with-open [sender        (connect-client "client01" (constantly true))
-                    receiver      (connect-client "client02" (fn [conn msg] (deliver received msg)))]
-          (client/wait-for-connection sender (* 40 1000))
-          (client/wait-for-association sender (* 40 1000))
-          (client/wait-for-connection receiver (* 40 1000))
-          (client/wait-for-association receiver (* 40 1000))
-          (client/send! sender message)
-          (deref received)
-          (is (= expected-data (String. (message/get-data @received) "UTF-8")))
-          (is (= (:id message) (:id @received)))
-          (is (= (:message_type message) (:message_type @received)))
-          (is (= (:expires message) (:expires @received)))
-          (is (= (:targets message) (:targets @received)))
-          (is (= "pcp://client01.example.com/demo-client" (:sender @received))))))))
+(deftest message-roundtrip-test
+  (doseq [target-type ["agent" "controller"]]
+    (testing (format "payloads with target type '%s'" target-type)
+      (with-app-with-config app broker-services broker-config
+        (let [expected-data "Hello World!Ѱ$£%^\"\t\r\n(*)"
+              message (-> (message/make-message)
+                          (message/set-data expected-data)
+                          (assoc :target (str "pcp://client02.example.com/" target-type)
+                                 :message_type "example/any_schema"))
+              received (promise)]
+          (with-open [sender (connect-client "client01" (constantly true))
+                      receiver (-> (client-config "client02")
+                                   (assoc :type target-type)
+                                   (connect-client-config (fn [conn msg] (deliver received msg))))]
+            (client/wait-for-connection sender (* 40 1000))
+            (client/wait-for-connection receiver (* 40 1000))
+            (client/send! sender message)
+            (deref received)
+            (is (= expected-data (message/get-data @received)))
+            (is (= (:id message) (:id @received)))
+            (is (= (:message_type message) (:message_type @received)))
+            (is (= (:target message) (:target @received)))
+            (is (= "pcp://client01.example.com/agent" (:sender @received)))))))))
 
 (deftest connect-to-a-down-broker-test
   (with-open [client (connect-client "client01" (constantly true))]
@@ -121,41 +134,36 @@
     (update-in broker-config [:webserver] merge
                {:ssl-key "./test-resources/ssl/private_keys/client01.example.com.pem"
                 :ssl-cert "./test-resources/ssl/certs/client01.example.com.pem"})
-    (with-log-level "puppetlabs.pcp.client" :warn
-      (with-test-logging
-        (with-open [client (connect-client "client01" (constantly true))]
-          (client/wait-for-connection client (* 4 1000))
-          (is (not (client/connected? client)) "Should never connect - ssl certificate of the broker is client01.example.com not localhost")
-          (is (logged? #"TLS Handshake failed\. Sleeping for up to 200 ms to retry" :warn)))))))
+    (eventually-logged? "puppetlabs.pcp.client" :warn
+                        (partial re-find #"TLS Handshake failed\. Sleeping for up to 200 ms to retry")
+                        (with-open [client (connect-client "client01" (constantly true))]
+                          (client/wait-for-connection client (* 4 1000))
+                          (is (not (client/connected? client)))))))
 
 (deftest ssl-ca-cert-permutation-test
   ;; This test checks that ssl verification is happening
   ;; against the expected certificate chain.  We do this using an
   ;; alternate signing authority (test-resources/ssl-alt), and then
   ;; permute the ssl-ca-cert configured for client and broker.
-  (doseq [[broker-ca client-ca associates retries]
-          [["ssl"     "ssl"     true  false]  ;; well-configured case
-           ["ssl"     "ssl-alt" false true] ;; client should reject server cert
-           ["ssl-alt" "ssl"     false false] ;; server should reject client cert
-           ["ssl-alt" "ssl-alt" false true] ;; mutual rejection
-           ]]
+  (doseq [[broker-ca client-ca retries]
+          [["ssl" "ssl-alt"] ;; client should reject server cert
+           ["ssl-alt" "ssl-alt"]]]
     (testing (str "broker-ca: " broker-ca " client-ca: " client-ca)
       (with-app-with-config app broker-services
         (assoc-in broker-config [:webserver :ssl-ca-cert]
                   (str "./test-resources/" broker-ca "/ca/ca_crt.pem"))
-        (with-log-level "puppetlabs.pcp.client" :warn
-          (with-test-logging
-            (with-open [client (connect-client-config (assoc (client-config "client01")
-                                                             :cacert (str "test-resources/" client-ca "/certs/ca.pem"))
-                                                      (constantly true))]
-              (client/wait-for-association client (* 4 1000))
-              (is (= associates (client/associated? client)))
-              (when retries
-                (is (logged? #"TLS Handshake failed\. Sleeping for up to 200 ms to retry" :warn))))))))))
+          (eventually-logged?
+            "puppetlabs.pcp.client" :warn
+            (partial re-find #"TLS Handshake failed\. Sleeping for up to 200 ms to retry")
+            (with-open [client (connect-client-config
+                                 (assoc (client-config "client01")
+                                        :cacert (str "test-resources/" client-ca "/certs/ca.pem"))
+                                 (constantly true))]
+              (client/wait-for-connection client (* 4 1000))))))))
 
 (deftest send-when-not-connected-test
   (with-open [client (connect-client "client01" (constantly true))]
-    (is (thrown+? [:type :puppetlabs.pcp.client/not-associated]
+    (is (thrown+? [:type :puppetlabs.pcp.client/not-connected]
                   (client/send! client (message/make-message))))))
 
 (deftest connect-to-a-down-up-down-up-broker-test
@@ -171,25 +179,20 @@
       (client/wait-for-connection client (* 40 1000))
       (is (client/connected? client) "Should be reconnected"))))
 
-(deftest association-checkers-test
-  (with-app-with-config app broker-services broker-config
-    (with-open [client (connect-client "client01" (constantly true))]
-      (is (= client (client/wait-for-association client (* 40 1000))))
-      (is (= false (client/associating? client)))
-      (is (= true (client/associated? client))))))
-
 (deftest connect-with-too-small-message-size
   (with-app-with-config app broker-services broker-config
-    (with-open [client (connect-client-config (assoc (client-config "client01")
+    (let [received (promise)]
+      (with-open [client (connect-client-config (assoc (client-config "client01")
                                                        :max-message-size 128)
                                                 (constantly true))]
-      ; Stop the client immediately, but don't trigger on-close. This attempts to limit to only
-      ; one association attempt.
-      (deliver (:should-stop client) true)
-      (with-log-level "puppetlabs.pcp.client" :debug
-        (with-test-logging
-          (let [connected (client/wait-for-connection client 4000)
-                associated (client/wait-for-association client 1000)]
-            (is connected)
-            (is (not associated))
-            (is (logged? #"WebSocket closed 1009 Binary message size \[289\] exceeds maximum size \[128\]" :debug))))))))
+        (let [data (-> (message/make-message)
+                       (message/set-data "foobar")
+                       (assoc :target "pcp://client01.example.com/agent"
+                              :message_type "example/any_schema"))]
+          (deliver (:should-stop client) true)
+          (eventually-logged?
+            "puppetlabs.pcp.client" :debug
+            (partial re-find #"WebSocket closed 1009 Text message size \[185\] exceeds maximum size \[128\]")
+            (let [connected (client/wait-for-connection client 4000)]
+              (client/send! client data)
+              (is connected))))))))

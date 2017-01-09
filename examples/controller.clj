@@ -2,9 +2,9 @@
 
 (ns example-controller
     (:require
-      [clojure.tools.logging    :as log]
-      [puppetlabs.pcp.client  :as client]
-      [puppetlabs.pcp.message :as message]))
+      [clojure.tools.logging :as log]
+      [puppetlabs.pcp.client :as client]
+      [puppetlabs.pcp.message-v2 :as message]))
 
 (defn associate-session-handler
   [conn msg]
@@ -13,17 +13,17 @@
 (defn pcp-error-handler
   [conn msg]
   (log/info "^^^ PCP error handler got message" msg
-             "\n  Description: " (:description (message/get-json-data msg))))
+             "\n  Description: " (:description (message/get-data msg))))
 
 (defn inventory-handler
   [conn msg]
   (log/info "^^^ PCP inventory handler got message" msg
-             "\n  URIs: " (:uris (message/get-json-data msg))))
+             "\n  URIs: " (:uris (message/get-data msg))))
 
 (defn response-handler
   [conn msg]
       (log/info "&&& response handler got message" msg
-                 "\n  &&& &&& RESPONSE:" (message/get-json-data msg)))
+                 "\n  &&& &&& RESPONSE:" (message/get-data msg)))
 
 (defn agent-error-handler
   [conn msg]
@@ -57,24 +57,21 @@
        (log/info "### controller: starting WebSocket heartbeat thread")
        (client/start-heartbeat-thread cl)
        (log/info "### controller: waiting for the WebSocket session being associated")
-       (client/wait-for-association cl (* 20 1000))
        (log/info "### controller: sending inventory request")
        (client/send!
          cl
          (-> (message/make-message)
-             (message/set-expiry 4 :seconds)
-             (assoc :targets ["pcp:///server"]
+             (assoc :target "pcp:///server"
                     :message_type "http://puppetlabs.com/inventory_request")
-             (message/set-json-data {:query ["pcp://*/agent"]})))
+             (message/set-data {:query ["pcp://*/agent"]})))
 
        (log/info "### controller: sending agent request")
        (client/send!
          cl
          (-> (message/make-message)
-             (message/set-expiry 4 :seconds)
-             (assoc :targets ["pcp://*/agent"]
+             (assoc :target "pcp://*/agent"
                     :message_type "example/request")
-             (message/set-json-data {:action "demo"})))
+             (message/set-data {:action "demo"})))
        (log/info "### controller: waiting for 60 s")
        (Thread/sleep 60000)))
 

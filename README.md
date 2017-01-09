@@ -16,17 +16,16 @@ Releases of this project are distributed via clojars, to use it:
 (ns example-client
   (:require [clojure.tools.logging :as log]
             [puppetlabs.pcp.client :as client]
-            [puppetlabs.pcp.message :as message]))
+            [puppetlabs.pcp.message-v2 :as message]))
 
 (defn cnc-request-handler
   [conn request]
   (log/info "cnc handler got message" request)
   (let [response (-> (message/make-message)
-                     (assoc :targets [(:sender request)]
+                     (assoc :target (:sender request)
                             :message_type "example/cnc_response")
-                     (message/set-expiry 3 :seconds)
-                     (message/set-json-data {:response "Hello world"
-                                             :request (:id request)}))]
+                     (message/set-data {:response "Hello world"
+                                        :request (:id request)}))]
     (client/send! conn response))
   (log/info "cnc handler sent response"))
 
@@ -39,8 +38,7 @@ Releases of this project are distributed via clojars, to use it:
            {:server "wss://localhost:8142/pcp/"
             :cert "test-resources/ssl/certs/0001_controller.pem"
             :private-key "test-resources/ssl/private_keys/0001_controller.pem"
-            :cacert "test-resources/ssl/certs/ca.pem"
-            :type "demo-client"}
+            :cacert "test-resources/ssl/certs/ca.pem"}
            {"example/cnc_request" cnc-request-handler
             :default default-request-handler}))
 
@@ -50,16 +48,14 @@ Releases of this project are distributed via clojars, to use it:
 ;; sending messages
 (client/send! conn
               (-> (message/make-message)
-                  (message/set-expiry 3 :seconds)
-                  (assoc :targets ["pcp://*/demo-client"]
+                  (assoc :target "pcp://*/demo-client"
                          :message_type "example/any_schema")))
 
 (client/send! conn
               (-> (message/make-message)
-                  (message/set-expiry 3 :seconds)
-                  (assoc :targets ["pcp://*/demo-client"]
+                  (assoc :target "pcp://*/demo-client"
                          :message_type "example/cnc_request")
-                  (message/set-json-data {:action "demo"})))
+                  (message/set-data {:action "demo"})))
 
 ;; wait 5 seconds for things to resolve
 (Thread/sleep (* 5 1000))

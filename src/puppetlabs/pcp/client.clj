@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.client
   (:require [clojure.tools.logging :as log]
             [gniazdo.core :as ws]
-            [puppetlabs.pcp.message :as message :refer [Message]]
+            [puppetlabs.pcp.message-v2 :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [schema.core :as s]
@@ -19,22 +19,10 @@
   (connected? [client]
     "Returns true if the client is currently connected to the pcp-broker.
     Propagates any unhandled exception thrown while attempting to connect.")
-  (associating? [client]
-    "Returns true if the client has not yet recieved an association response")
-  (associated? [client]
-    "Returns true if the client has been successfully assocated with a broker")
   (wait-for-connection [client timeout-ms]
     "Wait up to timeout-ms for a connection to be established.
     Returns the client if the connection has been established, else nil.
     Propagates any unhandled exception thrown while attempting to connect.")
-  (wait-for-association [client timeout-ms]
-    "Wait up to timeout-ms for a connection to be associated. Returns the client if
-    the connection has been associated, else nil.
-
-     NOTE: There are two ways assocation may fail, we may not have
-     recieved an association response in the timeout specified, or the
-     association request may have been denied. Check associating? and
-     associated? if you are interested in detecting the difference.")
   (send! [client message]
     "Send a message across the currently connected client. Will
     raise ::not-associated if the client is not currently associated with the
@@ -63,8 +51,7 @@
 ;; with the dash so they're not clashing with the versions defined by
 ;; ClientInterface
 (declare -connecting? -connected?
-         -associating? -associated?
-         -wait-for-connection -wait-for-association -send! -close
+         -wait-for-connection -send! -close
          -start-heartbeat-thread)
 
 (s/defrecord Client
@@ -73,17 +60,12 @@
    handlers :- Handlers
    should-stop ;; promise that when delivered means should stop
    websocket-connection ;; atom of a promise that will be a connection or true
-   websocket-client
-   associate-response ;; atom of a promise that will be a boolean
-   ]
+   websocket-client]
   {(s/optional-key :user-data) s/Any} ;; a field for user data
   ClientInterface
   (connecting? [client] (-connecting? client))
   (connected? [client] (-connected? client))
-  (associating? [client] (-associating? client))
-  (associated? [client] (-associated? client))
   (wait-for-connection [client timeout] (-wait-for-connection client timeout))
-  (wait-for-association [client timeout] (-wait-for-association client timeout))
   (send! [client message] (-send! client message))
   (close [client] (-close client))
   (start-heartbeat-thread [client] (-start-heartbeat-thread client)))
@@ -104,33 +86,6 @@
       (catch java.util.concurrent.ExecutionException exception
         (log/debug exception (i18n/trs "exception while establishing a connection; not connected"))
         false))))
-
-(s/defn ^:private -associating? :- s/Bool
-  [client :- Client]
-  (let [{:keys [associate-response]} client]
-    (not (realized? @associate-response))))
-
-(s/defn ^:private -associated? :- s/Bool
-  [client :- Client]
-  (let [{:keys [associate-response]} client]
-    (and (realized? @associate-response) @@associate-response)))
-
-(s/defn ^:private session-association-message :- Message
-  [client :- Client]
-  (let [{:keys [identity]} client]
-    (-> (message/make-message :message_type "http://puppetlabs.com/associate_request"
-                              :sender identity
-                              :targets ["pcp:///server"])
-        (message/set-expiry 3 :seconds))))
-
-(s/defn ^:private associate-response-handler
-  [client :- Client message :- Message]
-  (let [data (message/get-json-data message)
-        {:keys [success]} data
-        {:keys [associate-response]} client]
-    (s/validate p/AssociateResponse data)
-    (log/debug (i18n/trs "Received associate_response message {0} {1}" message data))
-    (deliver @associate-response success)))
 
 (s/defn ^:private fallback-handler
   "The handler to use when no handler matches"
@@ -189,7 +144,7 @@
   or ConnectException a further connection attempt will be made by following an
   exponential backoff, whereas other exceptions will be propagated."
   [client :- Client]
-  (let [{:keys [server websocket-client associate-response should-stop]} client
+  (let [{:keys [server websocket-client should-stop]} client
         initial-sleep 200
         sleep-multiplier 2
         maximum-sleep (* 15 1000)]
@@ -199,32 +154,23 @@
             (ws/connect server
                         :client websocket-client
                         :on-connect (fn [session]
-                                      (log/debug (i18n/trs "WebSocket connected"))
-                                      (let [message (session-association-message client)
-                                            buffer  (ByteBuffer/wrap (message/encode message))]
-                                        (.. session (getRemote) (sendBytes buffer)))
-                                      (log/debug (i18n/trs "Sent associate session request")))
+                                      (log/debug (i18n/trs "WebSocket connected")))
                         :on-error (fn [error]
                                     (log/error error (i18n/trs "WebSocket error")))
                         :on-close (fn [code message]
                                     ;; Format error code as a string rather than a localized number, i.e. 1,234.
                                     (log/debug (i18n/trs "WebSocket closed {0} {1}" (str code) message))
-                                    (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       ;; Ensure disconnect state is immediately registered as connecting.
-                                      (reset! websocket-connection (future (Thread/sleep (* sleep-multiplier retry-sleep))))
+                                      (reset! websocket-connection
+                                              (future (Thread/sleep (* sleep-multiplier retry-sleep))))
                                       (log/debug (i18n/trs "Sleeping for up to {0} ms to retry" retry-sleep))
                                       (if-not (deref should-stop retry-sleep nil)
                                         (reset! websocket-connection (future (make-connection client)))
                                         (reset! websocket-connection (future true)))))
                         :on-receive (fn [text]
                                       (log/debug (i18n/trs "Received text message"))
-                                      (dispatch-message client (message/decode (message/string->bytes text))))
-                        :on-binary (fn [buffer offset count]
-                                     (let [message (message/decode buffer)]
-                                       (log/debug (i18n/trs "Received bin message - offset/bytes: {0}/{1} - message: {2}"
-                                                            offset count message))
-                                       (dispatch-message client message))))
+                                      (dispatch-message client (message/decode text))))
             (catch javax.net.ssl.SSLHandshakeException exception
               (log/warn exception (i18n/trs "TLS Handshake failed. Sleeping for up to {0} ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
@@ -246,33 +192,24 @@
   [client :- Client timeout :- s/Num]
   (let [{:keys [websocket-connection]} client]
     (try
-      (if (deref @websocket-connection timeout nil)
-        client
-        nil)
+      (when (deref @websocket-connection timeout nil)
+        client)
       (catch java.util.concurrent.ExecutionException exception
-        (log/debug exception (i18n/trs "exception while waiting for a connection; not connected"))
-        nil))))
-
-(s/defn -wait-for-association :- (s/maybe Client)
-  "Waits until a client is associated. If timeout is hit, or the association doesn't work, returns falsey"
-  [client :- Client timeout :- s/Num]
-  (let [{:keys [associate-response]} client]
-    (if (deref @associate-response timeout nil)
-      client
-      nil)))
+        (log/debug exception (i18n/trs "exception while waiting for a connection; not connected"))))))
 
 (s/defn ^:private -send! :- s/Bool
   "Send a message across the websocket session"
   [client :- Client message :- message/Message]
   (let [{:keys [identity websocket-connection]} client]
-    (if-not (-associated? client)
-      (throw+ {:type ::not-associated})
+    (if-not (connected? client)
+      (do (log/debug (i18n/trs "refusing to send message on unconnected session"))
+          (throw+ {:type ::not-connected}))
       (try
         (ws/send-msg @@websocket-connection
                      (message/encode (assoc message :sender identity)))
         (catch java.util.concurrent.ExecutionException exception
           (log/debug exception (i18n/trs "exception on the connection while attempting to send a message"))
-          (throw+ {:type :not-connected}))))
+          (throw+ {:type ::not-connected}))))
     true))
 
 (s/defn -close :- s/Bool
@@ -299,7 +236,7 @@
    :cacert s/Str
    :cert s/Str
    :private-key s/Str
-   :type s/Str
+   (s/optional-key :type) s/Str
    (s/optional-key :user-data) s/Any
    (s/optional-key :max-message-size) s/Int})
 
@@ -321,9 +258,17 @@
   [params :- ConnectParams]
   (let [client (WebSocketClient. (make-ssl-context params))]
     (if-let [max-message-size (:max-message-size params)]
-      (.setMaxBinaryMessageSize (.getPolicy client) max-message-size))
+      (.setMaxTextMessageSize (.getPolicy client) max-message-size))
     (.start client)
     client))
+
+(defn ^:private append-client-type
+  "Append client type to a ws connection Uri, accounting for possible trailing
+   slash."
+  [url type]
+  (if (= (last url) \/)
+    (str url type)
+    (str url "/" type)))
 
 (s/defn connect :- Client
   "Asyncronously establishes a connection to a pcp-broker named by
@@ -333,13 +278,12 @@
    or a certificate chain (with the first entry being the client's certificate)."
   [params :- ConnectParams handlers :- Handlers]
   (let [{:keys [cert type server user-data]} params
-        client (map->Client {:server server
-                             :identity (make-identity cert type)
+        defaulted-type (or type "agent")
+        client (map->Client {:server (append-client-type server defaulted-type)
+                             :identity (make-identity cert defaulted-type)
                              :websocket-client (make-websocket-client params)
                              :websocket-connection (atom (future true))
-                             :associate-response (atom (promise))
-                             :handlers (assoc handlers
-                                              "http://puppetlabs.com/associate_response" associate-response-handler)
+                             :handlers handlers
                              :should-stop (promise)
                              :user-data user-data})
         {:keys [websocket-connection]} client]
