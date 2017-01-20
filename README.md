@@ -4,6 +4,9 @@ PCP client
 
 https://github.com/puppetlabs/pcp-specifications
 
+Note that when connecting, the client will append the `type` to the `server` URI
+to ensure compatibility with pcp-broker 1.0+.
+
 ## Installation
 
 Releases of this project are distributed via clojars, to use it:
@@ -16,7 +19,7 @@ Releases of this project are distributed via clojars, to use it:
 (ns example-client
   (:require [clojure.tools.logging :as log]
             [puppetlabs.pcp.client :as client]
-            [puppetlabs.pcp.message :as message]))
+            [puppetlabs.pcp.message-v1 :as message]))
 
 (defn cnc-request-handler
   [conn request]

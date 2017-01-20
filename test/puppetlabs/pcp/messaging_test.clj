@@ -3,7 +3,7 @@
             [clojure.tools.logging :as log]
             [puppetlabs.pcp.broker.service :refer [broker-service]]
             [puppetlabs.pcp.client :as client]
-            [puppetlabs.pcp.message :as message]
+            [puppetlabs.pcp.message-v1 :as message]
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
             [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
@@ -36,7 +36,6 @@
 
    :web-router-service
    {:puppetlabs.pcp.broker.service/broker-service {:v1 "/pcp"
-                                                   :vNext "/pcp/vNext"
                                                    :metrics "/"}
     :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
@@ -82,12 +81,14 @@
    scheduler-service])
 
 (deftest send-message-and-assert-received-unchanged-test
-  (testing "binary payloads"
+  ;; this test was updated to be compatible with pcp-broker 1.0.0, which drops message expiration
+  ;; and only accepts json data types.
+  (testing "json payloads"
     (with-app-with-config app broker-services broker-config
-      (let [expected-data "Hello World!Ѱ$£%^\"\t\r\n(*)"
+      (let [expected-data "\"Hello World!Ѱ$£%^\t\r\n(*)\""
             message       (-> (message/make-message)
                               (message/set-expiry 3 :seconds)
-                              (message/set-data (byte-array (.getBytes expected-data "UTF-8")))
+                              (message/set-json-data expected-data)
                               (assoc :targets      ["pcp://client02.example.com/demo-client"]
                                      :message_type "example/any_schema"))
             received      (promise)]
@@ -99,10 +100,9 @@
           (client/wait-for-association receiver (* 40 1000))
           (client/send! sender message)
           (deref received)
-          (is (= expected-data (String. (message/get-data @received) "UTF-8")))
+          (is (= expected-data (message/get-json-data @received)))
           (is (= (:id message) (:id @received)))
           (is (= (:message_type message) (:message_type @received)))
-          (is (= (:expires message) (:expires @received)))
           (is (= (:targets message) (:targets @received)))
           (is (= "pcp://client01.example.com/demo-client" (:sender @received))))))))
 

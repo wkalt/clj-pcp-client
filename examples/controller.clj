@@ -2,9 +2,9 @@
 
 (ns example-controller
     (:require
-      [clojure.tools.logging    :as log]
-      [puppetlabs.pcp.client  :as client]
-      [puppetlabs.pcp.message :as message]))
+      [clojure.tools.logging     :as log]
+      [puppetlabs.pcp.client     :as client]
+      [puppetlabs.pcp.message-v1 :as message]))
 
 (defn associate-session-handler
   [conn msg]

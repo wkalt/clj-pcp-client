@@ -3,7 +3,7 @@
 (ns example-agent
     (:require [clojure.tools.logging :as log]
       [puppetlabs.pcp.client :as client]
-      [puppetlabs.pcp.message :as message]))
+      [puppetlabs.pcp.message-v1 :as message]))
 
 (defn pcp-error-handler
       [conn msg]

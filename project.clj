@@ -8,10 +8,10 @@
 
   :min-lein-version "2.7.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "0.3.0"]
+  :parent-project {:coords [puppetlabs/clj-parent "0.3.2"]
                    :inherit [:managed-dependencies]}
 
-  :dependencies [[puppetlabs/pcp-common "0.5.4"]
+  :dependencies [[puppetlabs/pcp-common "1.0.0"]
 
                  ;; Transitive dependencies on jetty for stylefuits/gniazdo
                  ;; to use a stable jetty release (gniazdo specifies 9.3.0M1)
@@ -41,7 +41,7 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "0.8.1" :exclusions [commons-logging]]
+  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "1.0.0"]
                                   [puppetlabs/trapperkeeper]
                                   [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink :classifier "test" :scope "test"]]}
