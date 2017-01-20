@@ -113,7 +113,7 @@
       (client/wait-for-connection client (* 40 1000))
       (is (client/connected? client) "Should now be connected"))
     ;; Allow time for the websocket connection to close, but not enough to attempt reconnecting
-    (Thread/sleep 1)
+    (Thread/sleep 5)
     (is (not (client/connected? client)) "Should be disconnected")))
 
 (deftest connect-to-a-broker-with-the-wrong-name-test
@@ -165,7 +165,7 @@
       (client/wait-for-connection client (* 40 1000))
       (is (client/connected? client) "Should now be connected"))
     ;; Allow time for the websocket connection to close, but not enough to attempt reconnecting
-    (Thread/sleep 1)
+    (Thread/sleep 5)
     (is (not (client/connected? client)) "Should be disconnected")
     (with-app-with-config app broker-services broker-config
       (client/wait-for-connection client (* 40 1000))
