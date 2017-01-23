@@ -93,6 +93,10 @@
   (let [{:keys [websocket-connection]} client]
     (not (realized? @websocket-connection))))
 
+(s/defn ^:private -connection-connected? :- s/Bool
+  [connection]
+  (and (realized? connection) (not (= @connection true))))
+
 (s/defn ^:private -connected? :- s/Bool
   [client :- Client]
   (let [{:keys [websocket-connection]} client]
@@ -100,7 +104,7 @@
     ;; this happens occasionally if the broker is starting up or shutting down
     ;; when we attempt to connect, or if the connection disappears abruptly
     (try
-      (and (realized? @websocket-connection) (not (= @@websocket-connection true)))
+      (-connection-connected? @websocket-connection)
       (catch java.util.concurrent.ExecutionException exception
         (log/debug exception (i18n/trs "exception while establishing a connection; not connected"))
         false))))
@@ -212,11 +216,12 @@
                                     (reset! associate-response (promise))
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       ;; Ensure disconnect state is immediately registered as connecting.
-                                      (reset! websocket-connection (future (Thread/sleep (* sleep-multiplier retry-sleep))))
                                       (log/debug (i18n/trs "Sleeping for up to {0} ms to retry" retry-sleep))
-                                      (if-not (deref should-stop retry-sleep nil)
-                                        (reset! websocket-connection (future (make-connection client)))
-                                        (reset! websocket-connection (future true)))))
+                                      (reset! websocket-connection
+                                              (future
+                                                (if-not (deref should-stop initial-sleep nil)
+                                                  (make-connection client)
+                                                  true)))))
                         :on-receive (fn [text]
                                       (log/debug (i18n/trs "Received text message"))
                                       (dispatch-message client (message/decode (message/string->bytes text))))
@@ -285,11 +290,15 @@
   (let [{:keys [should-stop websocket-client websocket-connection]} client]
     ;; NOTE:  This true value is also the sentinel for make-connection
     (deliver should-stop true)
-    (if (-connected? client)
-      (try
-        (ws/close @@websocket-connection)
-        (catch java.util.concurrent.ExecutionException exception
-          (log/debug exception (i18n/trs "exception while closing the connection; connection already closed")))))
+    (try
+      ;; Make access to websocket-connection atomic, so we don't cause an exception when racing
+      ;; during shutdown. The websocket-connection atom could be reset to true between checking
+      ;; connected? and dereferencing the atom to close the connection.
+      (let [connection @websocket-connection]
+        (if (-connection-connected? connection)
+          (ws/close @connection)))
+      (catch java.util.concurrent.ExecutionException exception
+        (log/debug exception (i18n/trs "exception while closing the connection; connection already closed"))))
     (.stop websocket-client))
   true)
 
