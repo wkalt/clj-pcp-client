@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.client-test
   (:require [clojure.test :refer :all]
             [puppetlabs.pcp.client :refer :all :as client]
-            [puppetlabs.pcp.message :as message]
+            [puppetlabs.pcp.message-v1 :as message]
             [slingshot.test]
             [schema.test :as st]))
 

@@ -1,7 +1,7 @@
 (ns puppetlabs.pcp.client
   (:require [clojure.tools.logging :as log]
             [gniazdo.core :as ws]
-            [puppetlabs.pcp.message :as message :refer [Message]]
+            [puppetlabs.pcp.message-v1 :as message :refer [Message]]
             [puppetlabs.pcp.protocol :as p]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [schema.core :as s]
@@ -325,6 +325,14 @@
     (.start client)
     client))
 
+(defn ^:private append-client-type
+  "Append client type to a ws connection Uri, accounting for possible trailing
+   slash."
+  [url type]
+  (if (clojure.string/ends-with? url "/")
+    (str url type)
+    (str url "/" type)))
+
 (s/defn connect :- Client
   "Asyncronously establishes a connection to a pcp-broker named by
   `:server`. Returns a Client.
@@ -333,7 +341,7 @@
    or a certificate chain (with the first entry being the client's certificate)."
   [params :- ConnectParams handlers :- Handlers]
   (let [{:keys [cert type server user-data]} params
-        client (map->Client {:server server
+        client (map->Client {:server (append-client-type server type)
                              :identity (make-identity cert type)
                              :websocket-client (make-websocket-client params)
                              :websocket-connection (atom (future true))
