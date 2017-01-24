@@ -1,3 +1,11 @@
+## 0.4.0
+
+This is a feature release to enable compatibility with pcp-broker 1.0. It
+retains compatibility with earlier pcp-broker implementations and uses PCP v1.
+
+* [PCP-693](https://tickets.puppetlabs.com/browse/PCP-693) Updates the client
+to interoperate with pcp-broker 1.0.0.
+
 ## 0.3.4
 
 This is a maintenance release.
