@@ -49,7 +49,6 @@
 
 (s/defrecord Client
   [server :- s/Str
-   identity :- p/Uri
    handlers :- Handlers
    should-stop ;; promise that when delivered means should stop
    websocket-connection ;; atom of a promise that will be a connection or true
@@ -96,18 +95,6 @@
                     (get handlers :default)
                     fallback-handler)]
     (handler client message)))
-
-(s/defn ^:private make-identity :- p/Uri
-  "extracts the common name from the named certificate and forms a PCP
-  Uri with it and the supplied type"
-  [certificate type]
-  (let [x509-chain (ssl-utils/pem->certs certificate)]
-    (when (empty? x509-chain)
-      (throw (IllegalArgumentException.
-               (i18n/trs "{0} must contain at least 1 certificate" certificate))))
-    (let [cn       (ssl-utils/get-cn-from-x509-certificate (first x509-chain))
-          identity (format "pcp://%s/%s" cn type)]
-      identity)))
 
 (s/defn ^:private heartbeat
   "Provides the WebSocket heartbeat task that sends pings over the
@@ -188,13 +175,12 @@
 (s/defn ^:private -send! :- s/Bool
   "Send a message across the websocket session"
   [client :- Client message :- message/Message]
-  (let [{:keys [identity websocket-connection]} client]
+  (let [{:keys [websocket-connection]} client]
     (if-not (connected? client)
       (do (log/debug (i18n/trs "refusing to send message on unconnected session"))
           (throw+ {:type ::not-connected}))
       (try
-        (ws/send-msg @@websocket-connection
-                     (message/encode (assoc message :sender identity)))
+        (ws/send-msg @@websocket-connection (message/encode message))
         (catch java.util.concurrent.ExecutionException exception
           (log/debug exception (i18n/trs "exception on the connection while attempting to send a message"))
           (throw+ {:type ::not-connected}))))
@@ -272,7 +258,6 @@
   (let [{:keys [cert type server user-data]} params
         defaulted-type (or type "agent")
         client (map->Client {:server (append-client-type server defaulted-type)
-                             :identity (make-identity cert defaulted-type)
                              :websocket-client (make-websocket-client params)
                              :websocket-connection (atom (future true))
                              :handlers handlers
