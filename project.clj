@@ -41,7 +41,8 @@
 
   :test-paths ["test" "test-resources"]
 
-  :profiles {:dev {:dependencies [[puppetlabs/pcp-broker "1.0.0"]
+  :profiles {:dev {:source-paths ["dev"]
+                   :dependencies [[puppetlabs/pcp-broker "1.0.0"]
                                   [puppetlabs/trapperkeeper]
                                   [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink :classifier "test" :scope "test"]
