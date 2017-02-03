@@ -10,7 +10,9 @@
   (:import  (clojure.lang Atom)
             (java.nio ByteBuffer)
             (org.eclipse.jetty.websocket.client WebSocketClient)
-            (org.eclipse.jetty.util.ssl SslContextFactory)))
+            (org.eclipse.jetty.util.ssl SslContextFactory)
+            (javax.net.ssl SSLContext)
+            (java.security KeyStore)))
 
 (defprotocol ClientInterface
   "client interface - make one with connect"
@@ -208,15 +210,24 @@
     (.stop websocket-client))
   true)
 
+(def SslFiles
+  {:cacert s/Str
+   :cert s/Str
+   :private-key s/Str})
+
 (def ConnectParams
   "schema for connection parameters"
   {:server s/Str
-   :cacert s/Str
-   :cert s/Str
-   :private-key s/Str
+   :ssl-context (s/either SslFiles SSLContext)
    (s/optional-key :type) s/Str
    (s/optional-key :user-data) s/Any
    (s/optional-key :max-message-size) s/Int})
+
+(defmulti get-ssl-context class)
+(defmethod get-ssl-context SSLContext [context] context)
+(defmethod get-ssl-context java.util.Map [ssl-files]
+  (let [{:keys [cert private-key cacert]} ssl-files]
+    (ssl-utils/pems->ssl-context cert private-key cacert)))
 
 ;; private helpers for the ssl/websockets setup
 (s/defn ^:private make-ssl-context :- SslContextFactory
@@ -224,8 +235,7 @@
   client certificate named"
   [params]
   (let [factory (SslContextFactory.)
-        {:keys [cert private-key cacert]} params
-        ssl-context (ssl-utils/pems->ssl-context cert private-key cacert)]
+        ssl-context (get-ssl-context (:ssl-context params))]
     (.setSslContext factory ssl-context)
     (.setNeedClientAuth factory true)
     (.setEndpointIdentificationAlgorithm factory "HTTPS")
@@ -233,9 +243,9 @@
 
 (s/defn ^:private make-websocket-client :- WebSocketClient
   "Returns a WebSocketClient with the correct SSL context"
-  [params :- ConnectParams]
-  (let [client (WebSocketClient. (make-ssl-context params))]
-    (if-let [max-message-size (:max-message-size params)]
+  [ssl-context :- SslContextFactory max-message-size :- (s/maybe s/Int)]
+  (let [client (WebSocketClient. ssl-context)]
+    (if max-message-size
       (.setMaxTextMessageSize (.getPolicy client) max-message-size))
     (.start client)
     client))
@@ -257,8 +267,10 @@
   [params :- ConnectParams handlers :- Handlers]
   (let [{:keys [cert type server user-data]} params
         defaulted-type (or type "agent")
+        ssl-context-factory (make-ssl-context params)
         client (map->Client {:server (append-client-type server defaulted-type)
-                             :websocket-client (make-websocket-client params)
+                             :websocket-client (make-websocket-client ssl-context-factory
+                                                                      (:max-message-size params))
                              :websocket-connection (atom (future true))
                              :handlers handlers
                              :should-stop (promise)

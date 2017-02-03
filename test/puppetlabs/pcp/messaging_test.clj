@@ -4,6 +4,7 @@
             [puppetlabs.pcp.broker.service :refer [broker-service]]
             [puppetlabs.pcp.client :as client]
             [puppetlabs.pcp.message-v2 :as message]
+            [puppetlabs.ssl-utils.core :as ssl-utils]
             [puppetlabs.trapperkeeper.services.authorization.authorization-service :refer [authorization-service]]
             [puppetlabs.trapperkeeper.services.metrics.metrics-service :refer [metrics-service]]
             [puppetlabs.trapperkeeper.services.status.status-service :refer [status-service]]
@@ -55,9 +56,10 @@
   "returns a client config for a given cn against the test-resource/ssl ca"
   [cn]
   {:server      "wss://localhost:8143/pcp/"
-   :cert        (format "test-resources/ssl/certs/%s.example.com.pem" cn)
-   :private-key (format "test-resources/ssl/private_keys/%s.example.com.pem" cn)
-   :cacert      "test-resources/ssl/certs/ca.pem"})
+   :ssl-context
+   {:cert        (format "test-resources/ssl/certs/%s.example.com.pem" cn)
+    :private-key (format "test-resources/ssl/private_keys/%s.example.com.pem" cn)
+    :cacert      "test-resources/ssl/certs/ca.pem"}})
 
 (defn connect-client-config
   "connect a client with a handler function"
@@ -173,10 +175,27 @@
             "puppetlabs.pcp.client" :warn
             (partial re-find #"TLS Handshake failed\. Sleeping for up to 200 ms to retry")
             (with-open [client (connect-client-config
-                                 (assoc (client-config "client01")
-                                        :cacert (str "test-resources/" client-ca "/certs/ca.pem"))
+                                 (assoc-in (client-config "client01")
+                                        [:ssl-context :cacert] (str "test-resources/" client-ca "/certs/ca.pem"))
                                  (constantly true))]
               (client/wait-for-connection client (* 4 1000))))))))
+
+(deftest ssl-context-test
+  (with-app-with-config app broker-services broker-config
+    (let [message (-> (message/make-message)
+                      (assoc :target "pcp://client01.example.com/agent"
+                             :sender "pcp://client01.example.com/agent"
+                             :message_type "example/any_schema"))
+          received (promise)
+          base-config (client-config "client01")
+          {:keys [cert private-key cacert]} (:ssl-context base-config)]
+      (with-open [sendeiver (connect-client-config
+                              (assoc base-config
+                                     :ssl-context (ssl-utils/pems->ssl-context cert private-key cacert))
+                              (fn [_ msg] (deliver received msg)))]
+        (client/wait-for-connection sendeiver (* 4 1000))
+        (client/send! sendeiver message)
+        (is (= (deref received) message))))))
 
 (deftest send-when-not-connected-test
   (with-open [client (connect-client "client01" (constantly true))]

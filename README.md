@@ -36,9 +36,10 @@ Releases of this project are distributed via clojars, to use it:
 ;; connecting with handlers
 (def conn (client/connect
            {:server "wss://localhost:8142/pcp/"
-            :cert "test-resources/ssl/certs/0001_controller.pem"
-            :private-key "test-resources/ssl/private_keys/0001_controller.pem"
-            :cacert "test-resources/ssl/certs/ca.pem"}
+            :ssl-context
+            {:cert "test-resources/ssl/certs/0001_controller.pem"
+             :private-key "test-resources/ssl/private_keys/0001_controller.pem"
+             :cacert "test-resources/ssl/certs/ca.pem"}}
            {"example/cnc_request" cnc-request-handler
             :default default-request-handler}))
 
