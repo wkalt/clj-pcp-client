@@ -34,13 +34,7 @@
 
      NOTE: you must invoke this function to properly close the connection,
      otherwise reconnection attempts may happen and the heartbeat thread will
-     persist, in case it was previously started.")
-  (start-heartbeat-thread [client]
-    "Start a thread that will periodically send WebSocket pings to the pcp-broker.
-    The heartbeat thread will be stopped once the 'close' is invoked.
-    Propagate any unhandled exception thrown while attempting to connect.
-    Will raise ::not-connected if the client is not currently connected with the
-    pcp-broker."))
+     persist, in case it was previously started."))
 
 (def Handlers
   "schema for handler map. String keys are data_schema handlers,
@@ -51,8 +45,7 @@
 ;; with the dash so they're not clashing with the versions defined by
 ;; ClientInterface
 (declare -connecting? -connected?
-         -wait-for-connection -send! -close
-         -start-heartbeat-thread)
+         -wait-for-connection -send! -close)
 
 (s/defrecord Client
   [server :- s/Str
@@ -67,8 +60,7 @@
   (connected? [client] (-connected? client))
   (wait-for-connection [client timeout] (-wait-for-connection client timeout))
   (send! [client message] (-send! client message))
-  (close [client] (-close client))
-  (start-heartbeat-thread [client] (-start-heartbeat-thread client)))
+  (close [client] (-close client)))
 
 (s/defn ^:private -connecting? :- s/Bool
   [client :- Client]
@@ -122,26 +114,13 @@
   current set of connections as long as the 'should-stop' promise has
   not been delivered. Will keep a connection alive, or detect a
   stalled connection earlier."
-  [client :- Client]
-  (let [{:keys [should-stop websocket-client]} client]
-    (while (not (deref should-stop 15000 false))
-      (let [sessions (.getOpenSessions websocket-client)]
-        (log/debug (i18n/trs "Sending WebSocket ping"))
-        (doseq [session sessions]
-          (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
-    (log/debug (i18n/trs "WebSocket heartbeat task is about to finish"))))
-
-(s/defn ^:private -start-heartbeat-thread
-  "Ensures that the WebSocket connection is established and starts the WebSocket
-  heartbeat task. Propagates any unhandled exception thrown while attempting
-  to connect. Rasises ::not-connected in case the connection was not established."
-  [client :- Client]
-  (log/trace (i18n/trs "Ensuring that the WebSocket is connected"))
-  (when-not (-connected? client)
-    (throw+ {:type ::not-connected}))
-  (log/debug (i18n/trs "WebSocket heartbeat task is about to start {0}" client))
-  (.start (Thread. (partial heartbeat client))))
-
+  [websocket-client should-stop]
+  (while (not (deref should-stop 15000 false))
+    (let [sessions (.getOpenSessions websocket-client)]
+      (log/debug (i18n/trs "Sending WebSocket ping"))
+      (doseq [session sessions]
+        (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
+  (log/debug (i18n/trs "WebSocket heartbeat task is about to finish")))
 
 (s/defn ^:private make-connection :- Object
   "Returns a connected WebSocket connection. In case of a SSLHandShakeException
@@ -152,18 +131,23 @@
         initial-sleep 200
         sleep-multiplier 2
         maximum-sleep (* 15 1000)]
-    (loop [retry-sleep initial-sleep]
+    ;; Use a separate promise for ensuring the heartbeat stops when connection is closed.
+    ;; If a new connection is established, a new heartbeat thread will start.
+    (loop [retry-sleep initial-sleep
+           stop-heartbeat (promise)]
       (or (try+
             (log/debug (i18n/trs "Making connection to {0}" server))
             (ws/connect server
                         :client websocket-client
                         :on-connect (fn [session]
-                                      (log/debug (i18n/trs "WebSocket connected")))
+                                      (log/debug (i18n/trs "WebSocket connected, heartbeat task starting"))
+                                      (.start (Thread. (partial heartbeat websocket-client stop-heartbeat))))
                         :on-error (fn [error]
                                     (log/error error (i18n/trs "WebSocket error")))
                         :on-close (fn [code message]
                                     ;; Format error code as a string rather than a localized number, i.e. 1,234.
                                     (log/debug (i18n/trs "WebSocket closed {0} {1}" (str code) message))
+                                    (deliver stop-heartbeat true)
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       ;; Ensure disconnect state is immediately registered as connecting.
                                       (log/debug (i18n/trs "Sleeping for up to {0} ms to retry" retry-sleep))
@@ -189,7 +173,7 @@
             (catch Object _
               (log/error (:throwable &throw-context) (i18n/trs "Unexpected error"))
               (throw+)))
-          (recur (min maximum-sleep (* retry-sleep sleep-multiplier)))))))
+          (recur (min maximum-sleep (* retry-sleep sleep-multiplier)) (promise))))))
 
 (s/defn -wait-for-connection :- (s/maybe Client)
   "Waits until a client is connected. If timeout is hit, returns falsey"
