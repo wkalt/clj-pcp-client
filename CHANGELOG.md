@@ -1,3 +1,13 @@
+## 1.0.0
+
+This is a major feature release to support PCP v2. It drops support for PCP v1.
+
+* [PCP-700](https://tickets.puppetlabs.com/browse/PCP-700) Support usage in
+pcp-broker. Specifically allow initializing from an SSLContext, handle the
+heartbeat thread internally, and don't set sender so messages can be relayed.
+* [PCP-652](https://tickets.puppetlabs.com/browse/PCP-652) Switch to using PCP
+v2. Drops support for message expiration.
+
 ## 0.4.0
 
 This is a feature release to enable compatibility with pcp-broker 1.0. It

@@ -10,7 +10,9 @@
   (:import  (clojure.lang Atom)
             (java.nio ByteBuffer)
             (org.eclipse.jetty.websocket.client WebSocketClient)
-            (org.eclipse.jetty.util.ssl SslContextFactory)))
+            (org.eclipse.jetty.util.ssl SslContextFactory)
+            (javax.net.ssl SSLContext)
+            (java.security KeyStore)))
 
 (defprotocol ClientInterface
   "client interface - make one with connect"
@@ -34,13 +36,7 @@
 
      NOTE: you must invoke this function to properly close the connection,
      otherwise reconnection attempts may happen and the heartbeat thread will
-     persist, in case it was previously started.")
-  (start-heartbeat-thread [client]
-    "Start a thread that will periodically send WebSocket pings to the pcp-broker.
-    The heartbeat thread will be stopped once the 'close' is invoked.
-    Propagate any unhandled exception thrown while attempting to connect.
-    Will raise ::not-connected if the client is not currently connected with the
-    pcp-broker."))
+     persist, in case it was previously started."))
 
 (def Handlers
   "schema for handler map. String keys are data_schema handlers,
@@ -51,12 +47,10 @@
 ;; with the dash so they're not clashing with the versions defined by
 ;; ClientInterface
 (declare -connecting? -connected?
-         -wait-for-connection -send! -close
-         -start-heartbeat-thread)
+         -wait-for-connection -send! -close)
 
 (s/defrecord Client
   [server :- s/Str
-   identity :- p/Uri
    handlers :- Handlers
    should-stop ;; promise that when delivered means should stop
    websocket-connection ;; atom of a promise that will be a connection or true
@@ -67,8 +61,7 @@
   (connected? [client] (-connected? client))
   (wait-for-connection [client timeout] (-wait-for-connection client timeout))
   (send! [client message] (-send! client message))
-  (close [client] (-close client))
-  (start-heartbeat-thread [client] (-start-heartbeat-thread client)))
+  (close [client] (-close client)))
 
 (s/defn ^:private -connecting? :- s/Bool
   [client :- Client]
@@ -105,43 +98,18 @@
                     fallback-handler)]
     (handler client message)))
 
-(s/defn ^:private make-identity :- p/Uri
-  "extracts the common name from the named certificate and forms a PCP
-  Uri with it and the supplied type"
-  [certificate type]
-  (let [x509-chain (ssl-utils/pem->certs certificate)]
-    (when (empty? x509-chain)
-      (throw (IllegalArgumentException.
-               (i18n/trs "{0} must contain at least 1 certificate" certificate))))
-    (let [cn       (ssl-utils/get-cn-from-x509-certificate (first x509-chain))
-          identity (format "pcp://%s/%s" cn type)]
-      identity)))
-
 (s/defn ^:private heartbeat
   "Provides the WebSocket heartbeat task that sends pings over the
   current set of connections as long as the 'should-stop' promise has
   not been delivered. Will keep a connection alive, or detect a
   stalled connection earlier."
-  [client :- Client]
-  (let [{:keys [should-stop websocket-client]} client]
-    (while (not (deref should-stop 15000 false))
-      (let [sessions (.getOpenSessions websocket-client)]
-        (log/debug (i18n/trs "Sending WebSocket ping"))
-        (doseq [session sessions]
-          (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
-    (log/debug (i18n/trs "WebSocket heartbeat task is about to finish"))))
-
-(s/defn ^:private -start-heartbeat-thread
-  "Ensures that the WebSocket connection is established and starts the WebSocket
-  heartbeat task. Propagates any unhandled exception thrown while attempting
-  to connect. Rasises ::not-connected in case the connection was not established."
-  [client :- Client]
-  (log/trace (i18n/trs "Ensuring that the WebSocket is connected"))
-  (when-not (-connected? client)
-    (throw+ {:type ::not-connected}))
-  (log/debug (i18n/trs "WebSocket heartbeat task is about to start {0}" client))
-  (.start (Thread. (partial heartbeat client))))
-
+  [websocket-client should-stop]
+  (while (not (deref should-stop 15000 false))
+    (let [sessions (.getOpenSessions websocket-client)]
+      (log/debug (i18n/trs "Sending WebSocket ping"))
+      (doseq [session sessions]
+        (.. session (getRemote) (sendPing (ByteBuffer/allocate 1))))))
+  (log/debug (i18n/trs "WebSocket heartbeat task is about to finish")))
 
 (s/defn ^:private make-connection :- Object
   "Returns a connected WebSocket connection. In case of a SSLHandShakeException
@@ -152,18 +120,23 @@
         initial-sleep 200
         sleep-multiplier 2
         maximum-sleep (* 15 1000)]
-    (loop [retry-sleep initial-sleep]
+    ;; Use a separate promise for ensuring the heartbeat stops when connection is closed.
+    ;; If a new connection is established, a new heartbeat thread will start.
+    (loop [retry-sleep initial-sleep
+           stop-heartbeat (promise)]
       (or (try+
             (log/debug (i18n/trs "Making connection to {0}" server))
             (ws/connect server
                         :client websocket-client
                         :on-connect (fn [session]
-                                      (log/debug (i18n/trs "WebSocket connected")))
+                                      (log/debug (i18n/trs "WebSocket connected, heartbeat task starting"))
+                                      (.start (Thread. (partial heartbeat websocket-client stop-heartbeat))))
                         :on-error (fn [error]
                                     (log/error error (i18n/trs "WebSocket error")))
                         :on-close (fn [code message]
                                     ;; Format error code as a string rather than a localized number, i.e. 1,234.
                                     (log/debug (i18n/trs "WebSocket closed {0} {1}" (str code) message))
+                                    (deliver stop-heartbeat true)
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       ;; Ensure disconnect state is immediately registered as connecting.
                                       (log/debug (i18n/trs "Sleeping for up to {0} ms to retry" retry-sleep))
@@ -189,7 +162,7 @@
             (catch Object _
               (log/error (:throwable &throw-context) (i18n/trs "Unexpected error"))
               (throw+)))
-          (recur (min maximum-sleep (* retry-sleep sleep-multiplier)))))))
+          (recur (min maximum-sleep (* retry-sleep sleep-multiplier)) (promise))))))
 
 (s/defn -wait-for-connection :- (s/maybe Client)
   "Waits until a client is connected. If timeout is hit, returns falsey"
@@ -204,13 +177,12 @@
 (s/defn ^:private -send! :- s/Bool
   "Send a message across the websocket session"
   [client :- Client message :- message/Message]
-  (let [{:keys [identity websocket-connection]} client]
+  (let [{:keys [websocket-connection]} client]
     (if-not (connected? client)
       (do (log/debug (i18n/trs "refusing to send message on unconnected session"))
           (throw+ {:type ::not-connected}))
       (try
-        (ws/send-msg @@websocket-connection
-                     (message/encode (assoc message :sender identity)))
+        (ws/send-msg @@websocket-connection (message/encode message))
         (catch java.util.concurrent.ExecutionException exception
           (log/debug exception (i18n/trs "exception on the connection while attempting to send a message"))
           (throw+ {:type ::not-connected}))))
@@ -238,15 +210,24 @@
     (.stop websocket-client))
   true)
 
+(def SslFiles
+  {:cacert s/Str
+   :cert s/Str
+   :private-key s/Str})
+
 (def ConnectParams
   "schema for connection parameters"
   {:server s/Str
-   :cacert s/Str
-   :cert s/Str
-   :private-key s/Str
+   :ssl-context (s/either SslFiles SSLContext)
    (s/optional-key :type) s/Str
    (s/optional-key :user-data) s/Any
    (s/optional-key :max-message-size) s/Int})
+
+(defmulti get-ssl-context class)
+(defmethod get-ssl-context SSLContext [context] context)
+(defmethod get-ssl-context java.util.Map [ssl-files]
+  (let [{:keys [cert private-key cacert]} ssl-files]
+    (ssl-utils/pems->ssl-context cert private-key cacert)))
 
 ;; private helpers for the ssl/websockets setup
 (s/defn ^:private make-ssl-context :- SslContextFactory
@@ -254,8 +235,7 @@
   client certificate named"
   [params]
   (let [factory (SslContextFactory.)
-        {:keys [cert private-key cacert]} params
-        ssl-context (ssl-utils/pems->ssl-context cert private-key cacert)]
+        ssl-context (get-ssl-context (:ssl-context params))]
     (.setSslContext factory ssl-context)
     (.setNeedClientAuth factory true)
     (.setEndpointIdentificationAlgorithm factory "HTTPS")
@@ -263,9 +243,9 @@
 
 (s/defn ^:private make-websocket-client :- WebSocketClient
   "Returns a WebSocketClient with the correct SSL context"
-  [params :- ConnectParams]
-  (let [client (WebSocketClient. (make-ssl-context params))]
-    (if-let [max-message-size (:max-message-size params)]
+  [ssl-context :- SslContextFactory max-message-size :- (s/maybe s/Int)]
+  (let [client (WebSocketClient. ssl-context)]
+    (if max-message-size
       (.setMaxTextMessageSize (.getPolicy client) max-message-size))
     (.start client)
     client))
@@ -287,9 +267,10 @@
   [params :- ConnectParams handlers :- Handlers]
   (let [{:keys [cert type server user-data]} params
         defaulted-type (or type "agent")
+        ssl-context-factory (make-ssl-context params)
         client (map->Client {:server (append-client-type server defaulted-type)
-                             :identity (make-identity cert defaulted-type)
-                             :websocket-client (make-websocket-client params)
+                             :websocket-client (make-websocket-client ssl-context-factory
+                                                                      (:max-message-size params))
                              :websocket-connection (atom (future true))
                              :handlers handlers
                              :should-stop (promise)
