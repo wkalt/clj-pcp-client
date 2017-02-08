@@ -8,10 +8,10 @@
 
   :min-lein-version "2.7.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "0.3.2"]
+  :parent-project {:coords [puppetlabs/clj-parent "0.4.1"]
                    :inherit [:managed-dependencies]}
 
-  :dependencies [[puppetlabs/pcp-common "1.0.0"]
+  :dependencies [[puppetlabs/pcp-common "1.1.1"]
 
                  ;; Transitive dependencies on jetty for stylefuits/gniazdo
                  ;; to use a stable jetty release (gniazdo specifies 9.3.0M1)
@@ -46,7 +46,7 @@
                                   [puppetlabs/trapperkeeper]
                                   [puppetlabs/trapperkeeper :classifier "test" :scope "test"]
                                   [puppetlabs/kitchensink :classifier "test" :scope "test"]
-                                  [puppetlabs/trapperkeeper-webserver-jetty9 "1.6.0"]]}
+                                  [puppetlabs/trapperkeeper-webserver-jetty9]]}
              :cljfmt {:plugins [[lein-cljfmt "0.3.0"]
                                 [lein-parent "0.2.1"]]
                       :parent-project {:path "../pl-clojure-style/project.clj"
