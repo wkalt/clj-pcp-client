@@ -1,3 +1,11 @@
+## 1.1.0
+
+This is a minor maintenance and feature release.
+
+* [PCP-713](https://tickets.puppetlabs.com/browse/PCP-713) Add an on-close
+callback that's called whenever the client disconnects.
+* Update to clj-parent 0.4.1 and pcp-common 1.1.1.
+
 ## 1.0.0
 
 This is a major feature release to support PCP v2. It drops support for PCP v1.
