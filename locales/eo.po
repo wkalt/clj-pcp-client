@@ -1,0 +1,116 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Puppet <docs@puppet.com>
+# This file is distributed under the same license as the puppetlabs.pcp_client package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# 
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: puppetlabs.pcp_client\n"
+"Report-Msgid-Bugs-To: docs@puppet.com\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: \n"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "exception while establishing a connection; not connected"
+msgstr "[ḗẋƈḗƥŧīǿƞ ẇħīŀḗ ḗşŧȧƀŀīşħīƞɠ ȧ ƈǿƞƞḗƈŧīǿƞ; ƞǿŧ ƈǿƞƞḗƈŧḗḓ ǅ鶱ſΐϖϑϱǈ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "No handler for {0}"
+msgstr "[Ƞǿ ħȧƞḓŀḗř ƒǿř {0} ǈΐ ǋǲǋǋΐıϖ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "{0} must contain at least 1 certificate"
+msgstr "[{0} ḿŭşŧ ƈǿƞŧȧīƞ ȧŧ ŀḗȧşŧ 1 ƈḗřŧīƒīƈȧŧḗ ϰϱΐ ϱϑϐϑ ϑ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "Sending WebSocket ping"
+msgstr "[Şḗƞḓīƞɠ ẆḗƀŞǿƈķḗŧ ƥīƞɠ ǈıΰǲϐǋı ϑςϵ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "WebSocket heartbeat task is about to finish"
+msgstr "[ẆḗƀŞǿƈķḗŧ ħḗȧřŧƀḗȧŧ ŧȧşķ īş ȧƀǿŭŧ ŧǿ ƒīƞīşħ ϐϰϕẛǋ衋ϰΐϰ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "Ensuring that the WebSocket is connected"
+msgstr "[Ḗƞşŭřīƞɠ ŧħȧŧ ŧħḗ ẆḗƀŞǿƈķḗŧ īş ƈǿƞƞḗƈŧḗḓ ϑϖϵΰſϵ靐ϑ ϑ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "WebSocket heartbeat task is about to start {0}"
+msgstr "[ẆḗƀŞǿƈķḗŧ ħḗȧřŧƀḗȧŧ ŧȧşķ īş ȧƀǿŭŧ ŧǿ şŧȧřŧ {0} ΰ鶱ǲǲϕϱſ靐ǈ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "Making connection to {0}"
+msgstr "[Ḿȧķīƞɠ ƈǿƞƞḗƈŧīǿƞ ŧǿ {0} ϐıϱϐςς 衋鶱ı]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "WebSocket connected"
+msgstr "[ẆḗƀŞǿƈķḗŧ ƈǿƞƞḗƈŧḗḓ ϵẛΰǋǋ衋ϵǋϑ ϱ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "WebSocket error"
+msgstr "[ẆḗƀŞǿƈķḗŧ ḗřřǿř ǅẛϱẛ靐靐ΰϰǲ]"
+
+#. Format error code as a string rather than a localized number, i.e. 1,234.
+#: src/puppetlabs/pcp/client.clj
+msgid "WebSocket closed {0} {1}"
+msgstr "[ẆḗƀŞǿƈķḗŧ ƈŀǿşḗḓ {0} {1} ǲ靐ǈςſ靐ϱςϕ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "Sleeping for up to {0} ms to retry"
+msgstr "[Şŀḗḗƥīƞɠ ƒǿř ŭƥ ŧǿ {0} ḿş ŧǿ řḗŧřẏ ǅϕΰΐẛ鶱衋ϰ ǲ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "Received text message"
+msgstr "[Řḗƈḗīṽḗḓ ŧḗẋŧ ḿḗşşȧɠḗ ıςςǅϕẛΐǈ 鶱]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "TLS Handshake failed. Sleeping for up to {0} ms to retry"
+msgstr "[ŦĿŞ Ħȧƞḓşħȧķḗ ƒȧīŀḗḓ. Şŀḗḗƥīƞɠ ƒǿř ŭƥ ŧǿ {0} ḿş ŧǿ řḗŧřẏ ǋϑΰ ΰΰς衋]"
+
+#. The following will produce "Didn't get connected. ..."
+#. The apostrophe needs to be duplicated (even in the translations).
+#: src/puppetlabs/pcp/client.clj
+msgid "Didn''t get connected. Sleeping for up to {0} ms to retry"
+msgstr "[Ḓīḓƞ''ŧ ɠḗŧ ƈǿƞƞḗƈŧḗḓ. Şŀḗḗƥīƞɠ ƒǿř ŭƥ ŧǿ {0} ḿş ŧǿ řḗŧřẏ 衋ẛϐϵ鶱ςǅ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid ""
+"Connection closed while establishing connection. Sleeping for up to {0} ms "
+"to reconnect"
+msgstr ""
+"[Ƈǿƞƞḗƈŧīǿƞ ƈŀǿşḗḓ ẇħīŀḗ ḗşŧȧƀŀīşħīƞɠ ƈǿƞƞḗƈŧīǿƞ. Şŀḗḗƥīƞɠ ƒǿř ŭƥ ŧǿ {0} ḿş "
+"ŧǿ řḗƈǿƞƞḗƈŧ ǲϱϱıǅϑϱΐ鶱ϐ ϕǲϵ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "Unexpected error"
+msgstr "[Ŭƞḗẋƥḗƈŧḗḓ ḗřřǿř ǋ衋ſϵϱΰϰ鶱靐ϕ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "exception while waiting for a connection; not connected"
+msgstr "[ḗẋƈḗƥŧīǿƞ ẇħīŀḗ ẇȧīŧīƞɠ ƒǿř ȧ ƈǿƞƞḗƈŧīǿƞ; ƞǿŧ ƈǿƞƞḗƈŧḗḓ ϕς衋ϵǋǅǋϰ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "refusing to send message on unconnected session"
+msgstr "[řḗƒŭşīƞɠ ŧǿ şḗƞḓ ḿḗşşȧɠḗ ǿƞ ŭƞƈǿƞƞḗƈŧḗḓ şḗşşīǿƞ ΐ靐ǈϵϑſϑ靐 ẛ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "exception on the connection while attempting to send a message"
+msgstr ""
+"[ḗẋƈḗƥŧīǿƞ ǿƞ ŧħḗ ƈǿƞƞḗƈŧīǿƞ ẇħīŀḗ ȧŧŧḗḿƥŧīƞɠ ŧǿ şḗƞḓ ȧ ḿḗşşȧɠḗ ϖϰ靐ΰϕΰΐΰǲ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "Closing"
+msgstr "[Ƈŀǿşīƞɠ ǅǈǋΰΰ靐ϖ]"
+
+#: src/puppetlabs/pcp/client.clj
+msgid "exception while closing the connection; connection already closed"
+msgstr ""
+"[ḗẋƈḗƥŧīǿƞ ẇħīŀḗ ƈŀǿşīƞɠ ŧħḗ ƈǿƞƞḗƈŧīǿƞ; ƈǿƞƞḗƈŧīǿƞ ȧŀřḗȧḓẏ ƈŀǿşḗḓ "
+"鶱ǈϰϐ靐ǋ衋鶱ϑ]"
