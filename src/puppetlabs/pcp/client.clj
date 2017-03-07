@@ -53,6 +53,7 @@
   [server :- s/Str
    handlers :- Handlers
    on-close-cb
+   on-connect-cb
    should-stop ;; promise that when delivered means should stop
    websocket-connection ;; atom of a promise that will be a connection or true
    websocket-client]
@@ -117,7 +118,7 @@
   or ConnectException a further connection attempt will be made by following an
   exponential backoff, whereas other exceptions will be propagated."
   [client :- Client]
-  (let [{:keys [server websocket-client should-stop on-close-cb]} client
+  (let [{:keys [server websocket-client should-stop on-close-cb on-connect-cb]} client
         initial-sleep 200
         sleep-multiplier 2
         maximum-sleep (* 15 1000)]
@@ -125,16 +126,20 @@
     ;; If a new connection is established, a new heartbeat thread will start.
     (loop [retry-sleep initial-sleep
            stop-heartbeat (promise)]
+      (println "attempting connection")
       (or (try+
             (log/debug (i18n/trs "Making connection to {0}" server))
             (ws/connect server
                         :client websocket-client
                         :on-connect (fn [session]
                                       (log/debug (i18n/trs "WebSocket connected, heartbeat task starting"))
-                                      (.start (Thread. (partial heartbeat websocket-client stop-heartbeat))))
+                                      (.start (Thread. (partial heartbeat websocket-client stop-heartbeat)))
+                                      (when on-connect-cb (on-connect-cb client)))
                         :on-error (fn [error]
+                                    (println "RECEIVED ERROR")
                                     (log/error error (i18n/trs "WebSocket error")))
                         :on-close (fn [code message]
+                                    (println "lost connection" code message)
                                     ;; Format error code as a string rather than a localized number, i.e. 1,234.
                                     (log/debug (i18n/trs "WebSocket closed {0} {1}" (str code) message))
                                     (deliver stop-heartbeat true)
@@ -142,6 +147,7 @@
                                     (let [{:keys [should-stop websocket-connection]} client]
                                       ;; Ensure disconnect state is immediately registered as connecting.
                                       (log/debug (i18n/trs "Sleeping for up to {0} ms to retry" retry-sleep))
+                                      (println "Sleeping ms to retry" retry-sleep)
                                       (reset! websocket-connection
                                               (future
                                                 (if-not (deref should-stop initial-sleep nil)
@@ -151,17 +157,22 @@
                                       (log/debug (i18n/trs "Received text message"))
                                       (dispatch-message client (message/decode text))))
             (catch javax.net.ssl.SSLHandshakeException exception
+              (println "CAUGHT SSLHANDSHAKE" exception)
               (log/warn exception (i18n/trs "TLS Handshake failed. Sleeping for up to {0} ms to retry" retry-sleep))
               (deref should-stop retry-sleep nil))
             (catch java.net.ConnectException exception
+              (println "CAUGHT CONN EX" exception)
               ;; The following will produce "Didn't get connected. ..."
               ;; The apostrophe needs to be duplicated (even in the translations).
               (log/debug exception (i18n/trs "Didn''t get connected. Sleeping for up to {0} ms to retry" retry-sleep))
+              (println "Didn''t get connected. Sleeping for up to {0} ms to retry" retry-sleep exception)
               (deref should-stop retry-sleep nil))
             (catch java.io.IOException exception
+              (println "CAUGHT IOEX" exception)
               (log/debug exception (i18n/trs "Connection closed while establishing connection. Sleeping for up to {0} ms to reconnect" retry-sleep))
               (deref should-stop retry-sleep nil))
             (catch Object _
+              (println "CAUGHT OBJ" _)
               (log/error (:throwable &throw-context) (i18n/trs "Unexpected error"))
               (throw+)))
           (recur (min maximum-sleep (* retry-sleep sleep-multiplier)) (promise))))))
@@ -199,6 +210,7 @@
   (log/debug (i18n/trs "Closing"))
   (let [{:keys [should-stop websocket-client websocket-connection]} client]
     ;; NOTE:  This true value is also the sentinel for make-connection
+    (println "CLOSING CONNECTION")
     (deliver should-stop true)
     (try
       ;; Make access to websocket-connection atomic, so we don't cause an exception when racing
@@ -222,6 +234,7 @@
   {:server s/Str
    :ssl-context (s/either SslFiles SSLContext)
    (s/optional-key :on-close-cb) Object
+   (s/optional-key :on-connect-cb) Object
    (s/optional-key :type) s/Str
    (s/optional-key :user-data) s/Any
    (s/optional-key :max-message-size) s/Int})
@@ -276,6 +289,7 @@
                                                                       (:max-message-size params))
                              :websocket-connection (atom (future true))
                              :on-close-cb (:on-close-cb params)
+                             :on-connect-cb (:on-connect-cb params)
                              :handlers handlers
                              :should-stop (promise)
                              :user-data user-data})
