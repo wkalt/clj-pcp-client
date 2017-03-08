@@ -1,3 +1,10 @@
+## 1.1.1
+
+This is a maintenance release.
+
+* [PCP-701](https://tickets.puppetlabs.com/browse/PCP-701) Add an on-connect
+callback that's called whenever the client connects.
+
 ## 1.1.0
 
 This is a minor maintenance and feature release.
