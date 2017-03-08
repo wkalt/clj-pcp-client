@@ -64,20 +64,20 @@
 (defn connect-client-config
   "connect a client with a handler function"
   ([config handler-function]
-   (connect-client-config config handler-function nil))
-  ([config handler-function on-close-cb]
-   (client/connect (if on-close-cb
-                     (assoc config :on-close-cb on-close-cb)
-                     config)
+   (connect-client-config config handler-function nil nil))
+  ([config handler-function on-close-cb on-connect-cb]
+   (client/connect (cond-> config
+                     on-close-cb (assoc :on-close-cb on-close-cb)
+                     on-connect-cb (assoc :on-connect-cb on-connect-cb))
      {"example/any_schema"  handler-function
       :default              default-request-handler})))
 
 (defn connect-client
   "connect a client with a handler function, uses default configuration strategy"
   ([cn handler-fn]
-   (connect-client cn handler-fn nil))
-  ([cn handler-fn on-close-cb]
-   (connect-client-config (client-config cn) handler-fn on-close-cb)))
+   (connect-client cn handler-fn nil nil))
+  ([cn handler-fn on-close-cb on-connect-cb]
+   (connect-client-config (client-config cn) handler-fn on-close-cb on-connect-cb)))
 
 (defmacro eventually-logged?
   [logger-id level pred & body]
@@ -210,12 +210,15 @@
 
 (deftest connect-to-a-down-up-down-up-broker-test
   (let [closed (promise)
-        on-close-cb (fn [c] (deliver closed c))]
-    (with-open [client (connect-client "client01" (constantly true) on-close-cb)]
+        connected (promise)
+        on-close-cb (fn [c] (deliver closed c))
+        on-connect-cb (fn [c] (deliver connected c))]
+    (with-open [client (connect-client "client01" (constantly true) on-close-cb on-connect-cb)]
       (is (not (client/connected? client)) "Should not be connected yet")
       (with-app-with-config app broker-services broker-config
         (is (= client (client/wait-for-connection client (* 40 1000))))
         (is (client/connected? client) "Should now be connected"))
+      (is (= (deref connected 1000 nil) client))
       ;; Allow time for the websocket connection to close, but not enough to attempt reconnecting
       (is (= (deref closed 1000 nil) client))
       (Thread/sleep 100)

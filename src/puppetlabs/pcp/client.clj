@@ -53,6 +53,7 @@
   [server :- s/Str
    handlers :- Handlers
    on-close-cb
+   on-connect-cb
    should-stop ;; promise that when delivered means should stop
    websocket-connection ;; atom of a promise that will be a connection or true
    websocket-client]
@@ -117,7 +118,7 @@
   or ConnectException a further connection attempt will be made by following an
   exponential backoff, whereas other exceptions will be propagated."
   [client :- Client]
-  (let [{:keys [server websocket-client should-stop on-close-cb]} client
+  (let [{:keys [server websocket-client should-stop on-close-cb on-connect-cb]} client
         initial-sleep 200
         sleep-multiplier 2
         maximum-sleep (* 15 1000)]
@@ -131,7 +132,8 @@
                         :client websocket-client
                         :on-connect (fn [session]
                                       (log/debug (i18n/trs "WebSocket connected, heartbeat task starting"))
-                                      (.start (Thread. (partial heartbeat websocket-client stop-heartbeat))))
+                                      (.start (Thread. (partial heartbeat websocket-client stop-heartbeat)))
+                                      (when on-connect-cb (on-connect-cb client)))
                         :on-error (fn [error]
                                     (log/error error (i18n/trs "WebSocket error")))
                         :on-close (fn [code message]
@@ -222,6 +224,7 @@
   {:server s/Str
    :ssl-context (s/either SslFiles SSLContext)
    (s/optional-key :on-close-cb) Object
+   (s/optional-key :on-connect-cb) Object
    (s/optional-key :type) s/Str
    (s/optional-key :user-data) s/Any
    (s/optional-key :max-message-size) s/Int})
@@ -276,6 +279,7 @@
                                                                       (:max-message-size params))
                              :websocket-connection (atom (future true))
                              :on-close-cb (:on-close-cb params)
+                             :on-connect-cb (:on-connect-cb params)
                              :handlers handlers
                              :should-stop (promise)
                              :user-data user-data})
