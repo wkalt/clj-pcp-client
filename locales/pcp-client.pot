@@ -26,10 +26,6 @@ msgid "No handler for {0}"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
-msgid "{0} must contain at least 1 certificate"
-msgstr ""
-
-#: src/puppetlabs/pcp/client.clj
 msgid "Sending WebSocket ping"
 msgstr ""
 
@@ -38,19 +34,11 @@ msgid "WebSocket heartbeat task is about to finish"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
-msgid "Ensuring that the WebSocket is connected"
-msgstr ""
-
-#: src/puppetlabs/pcp/client.clj
-msgid "WebSocket heartbeat task is about to start {0}"
-msgstr ""
-
-#: src/puppetlabs/pcp/client.clj
 msgid "Making connection to {0}"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
-msgid "WebSocket connected"
+msgid "WebSocket connected, heartbeat task starting"
 msgstr ""
 
 #: src/puppetlabs/pcp/client.clj
@@ -62,6 +50,7 @@ msgstr ""
 msgid "WebSocket closed {0} {1}"
 msgstr ""
 
+#. Ensure disconnect state is immediately registered as connecting.
 #: src/puppetlabs/pcp/client.clj
 msgid "Sleeping for up to {0} ms to retry"
 msgstr ""

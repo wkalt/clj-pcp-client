@@ -17,3 +17,4 @@ pom.xml.asc
 
 # Stores local files used by developers
 /eng-resources
+/dev-resources/i18n/bin
