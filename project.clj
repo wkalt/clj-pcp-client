@@ -8,10 +8,10 @@
 
   :min-lein-version "2.7.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "0.4.2"]
+  :parent-project {:coords [puppetlabs/clj-parent "0.4.3"]
                    :inherit [:managed-dependencies]}
 
-  :dependencies [[puppetlabs/pcp-common "1.1.2"]
+  :dependencies [[puppetlabs/pcp-common "1.1.3"]
 
                  ;; Transitive dependencies on jetty for stylefuits/gniazdo
                  ;; to use a stable jetty release (gniazdo specifies 9.3.0M1)
@@ -30,7 +30,7 @@
 
   :plugins [[lein-release "1.0.5" :exclusions [org.clojure/clojure]]
             [lein-parent "0.3.1"]
-            [puppetlabs/i18n "0.7.0"]]
+            [puppetlabs/i18n "0.7.1"]]
 
   :lein-release {:scm :git
                  :deploy-via :lein-deploy}
