@@ -41,8 +41,7 @@
                                                    :metrics "/"}
     :puppetlabs.trapperkeeper.services.status.status-service/status-service "/status"}
 
-   :metrics {:enabled true
-             :server-id "localhost"}
+   :metrics {:server-id "localhost"}
 
    :pcp-broker {:broker-spool "test-resources/tmp/spool"
                 :accept-consumers 2

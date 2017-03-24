@@ -1,3 +1,9 @@
+## 1.1.4
+
+This is a maintenance release.
+
+* Bumps clj-parent to 0.6.1 for i18n 0.8.0, and clj-pcp-common to 1.1.4.
+
 ## 1.1.3
 
 This is a maintenance release.
